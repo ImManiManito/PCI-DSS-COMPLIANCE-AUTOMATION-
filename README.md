@@ -1,36 +1,33 @@
 # PCI-DSS-COMPLIANCE-AUTOMATION-
 
-Es un proyecto de automatización orientado a facilitar la ejecución y seguimiento de actividades relacionadas con el cumplimiento del estándar PCI DSS (Payment Card Industry Data Security Standard).
+PCI-DSS-COMPLIANCE-AUTOMATION- is an automation project designed to streamline the execution and monitoring of activities related to the PCI DSS (Payment Card Industry Data Security Standard).
 
-El proyecto utiliza Ansible como plataforma principal de automatización e integra diferentes tecnologías de seguridad, entre ellas FortiGate, Check Point y Wazuh, para recopilar información, procesar eventos y generar evidencias de seguridad de manera estandarizada.
+The project uses Ansible as its primary automation platform and integrates several security technologies, including FortiGate, Check Point, and Wazuh, to collect security information, process events, and generate standardized compliance evidence.
 
-Las actividades se organizan de acuerdo con su periodicidad:
+Activities are organized according to their execution frequency:
 
-Daily
-Weekly
-Monthly
-Quarterly
+Daily -- Weekly -- Monthly -- Quarterly
 
-La arquitectura está diseñada para mantener cada actividad organizada e independiente, separando los playbooks de ejecución, las tareas de Ansible y los scripts utilizados para la extracción y procesamiento de información.
+The project architecture is designed to keep each activity organized and independent by separating execution playbooks, Ansible tasks, and the scripts used to collect and process security information.
 
 playbooks/
-    Actividades organizadas por periodicidad.
+    Activities organized by execution frequency.
 
 roles/
-    Automatizaciones específicas de cada plataforma.
+    Platform-specific automation.
 
 files/
-    Scripts, parsers y archivos auxiliares de cada actividad.
+    Scripts, parsers, and auxiliary files for each activity.
 
 common/
-    Componentes compartidos entre actividades.
+    Components shared across multiple activities.
 
 inventory/
-    Inventario de infraestructura.
+    Infrastructure inventory.
 
 scripts_cron/
-    Ejecuciones automatizadas y programadas.
+    Scheduled and automated executions.
 
-El proyecto también incorpora Ansible Vault para proteger credenciales, API Keys y otra información sensible, evitando que estos datos sean almacenados directamente en el código fuente.
+The project also uses Ansible Vault to protect credentials, API keys, and other sensitive information, ensuring that secrets are not stored directly in the source code.
 
-El propósito de esta iniciativa es reducir procesos manuales, mejorar la consistencia de las actividades de seguridad y facilitar la generación de evidencias que puedan ser utilizadas durante procesos de revisión y auditoría de cumplimiento PCI DSS.
+The main goal of this initiative is to reduce manual processes, improve the consistency and reliability of security activities, and facilitate the generation of evidence for PCI DSS compliance reviews and audits.
