@@ -1,18 +1,15 @@
 ---
-- name: CHD SAD - Actividades diarias FortiGate
-  hosts: fortigate
+- name: CHD SAD - Daily Security Activities
+  hosts: localhost
   gather_facts: false
 
   tasks:
 
-    - name: Ejecutar System Events
-      ansible.builtin.include_tasks:
-        file: "{{ role_path }}/tasks/system_events.yml"
+    - name: Execute FortiGate - System Events
+      include_tasks: ../../roles/fortigate/system_events/tasks/main.yml
 
-    - name: Ejecutar Admin Login Failed
-      ansible.builtin.include_tasks:
-        file: "{{ role_path }}/tasks/admin_login_failed.yml"
+    - name: Execute FortiGate - Admin Login Failed
+      include_tasks: ../../roles/fortigate/admin_login_failed/tasks/main.yml
 
-    - name: Ejecutar Configuration Changes
-      ansible.builtin.include_tasks:
-        file: "{{ role_path }}/tasks/configuration_changes.yml"
+    - name: Execute FortiGate - Configuration Changes
+      include_tasks: ../../roles/fortigate/configuration_changes/tasks/main.yml
