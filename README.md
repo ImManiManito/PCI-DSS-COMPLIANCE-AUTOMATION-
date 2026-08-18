@@ -1,3 +1,5 @@
+*[Leer este documento en español](README.es.md)*
+
 # PCI-DSS-COMPLIANCE-AUTOMATION-
 
 PCI-DSS-COMPLIANCE-AUTOMATION- is an automation project designed to streamline the execution and monitoring of activities related to the PCI DSS (Payment Card Industry Data Security Standard).
