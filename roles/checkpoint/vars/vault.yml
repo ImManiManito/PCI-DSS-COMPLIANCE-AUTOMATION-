@@ -1,0 +1,14 @@
+---
+# Credenciales de la API Key de Check Point Infinity Portal (Infinity Events).
+# IMPORTANTE: este archivo debe cifrarse con Ansible Vault antes de usarse en producción:
+# ansible-vault encrypt roles/checkpoint/vars/vault.yml
+checkpoint_infinity_client_id: "CLIENT_ID_AQUI"
+checkpoint_infinity_access_key: "ACCESS_KEY_AQUI"
+
+# Endpoints del portal de Infinity (ajustar la región del gateway según el tenant).
+checkpoint_infinity_auth_url: "https://cloudinfra-gw-us.portal.checkpoint.com/auth/external"
+checkpoint_infinity_events_url: "https://cloudinfra-gw-us.portal.checkpoint.com/app/laas-logs-api/graphql"
+
+# Correo utilizado para el envío de evidencia PCI DSS (si aplica).
+checkpoint_mail_from: "correo@dominio.com"
+checkpoint_mail_to: "correo@dominio.com"

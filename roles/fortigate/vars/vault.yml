@@ -1,6 +1,6 @@
 ---
 # Variables del correo utilizadas para enviar la evidencia PCI DSS.
 # IMPORTANTE: este archivo debe cifrarse con Ansible Vault antes de usarse en producción:
-#   ansible-vault encrypt roles/fortigate/vars/vault.yml
+# ansible-vault encrypt roles/fortigate/vars/vault.yml
 fortigate_mail_from: "correo@dominio.com"
 fortigate_mail_to: "correo@dominio.com"
