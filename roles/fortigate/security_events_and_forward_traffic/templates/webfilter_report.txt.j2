@@ -1,0 +1,10 @@
+==================================================================
+Evidencia PCI DSS - FortiGate Security Events and Forward Traffic
+==================================================================
+Dispositivo            : {{ fortigate_device }}
+Tipo de evento          : Webfilter (category=3, subtype=webfilter)
+Rango cubierto          : Últimos 7 días ({{ fortigate_forward_traffic_start_date }} a {{ fortigate_forward_traffic_end_date }})
+Generado el             : {{ now(fmt='%Y-%m-%d %H:%M:%S') }}
+==================================================================
+
+{{ fortigate_raw_output }}

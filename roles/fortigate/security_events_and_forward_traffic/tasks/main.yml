@@ -48,7 +48,39 @@
     fortigate_raw_output: "{{ fortigate_forward_traffic_results.results[fortigate_forward_traffic_idx].stdout }}"
   delegate_to: localhost
 
-- name: FortiGate Forward Traffic 7 días - Enviar evidencia por correo
+- name: FortiGate Webfilter 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/security_events_and_forward_traffic/scripts/fortigate_webfilter_7_days.sh"
+      - "{{ hostvars[item].ansible_host }}"
+      - "{{ hostvars[item].ansible_port }}"
+      - "{{ hostvars[item].ansible_user }}"
+      - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+      - "{{ item }}"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+    index_var: fortigate_webfilter_idx
+  register: fortigate_webfilter_results
+  changed_when: false
+  delegate_to: localhost
+
+- name: FortiGate Webfilter 7 días - Generar evidencia en archivos .txt
+  ansible.builtin.template:
+    src: webfilter_report.txt.j2
+    dest: "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_webfilter_{{ item }}.txt"
+    mode: "0640"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+    index_var: fortigate_webfilter_idx
+  vars:
+    fortigate_device: "{{ item }}"
+    fortigate_raw_output: "{{ fortigate_webfilter_results.results[fortigate_webfilter_idx].stdout }}"
+  delegate_to: localhost
+
+- name: FortiGate Security Events and Forward Traffic 7 días - Enviar evidencia por correo
   ansible.builtin.command:
     cmd:
       - bash
@@ -57,6 +89,7 @@
       - "{{ fortigate_mail_to }}"
       - "FortiGate Security Events and Forward Traffic 7 días - Evidencia PCI DSS ({{ fortigate_forward_traffic_start_date }} a {{ fortigate_forward_traffic_end_date }})"
       - "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_seguridad_y_trafico_forward_{{ item }}.txt"
+      - "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_webfilter_{{ item }}.txt"
   loop: "{{ groups['fortigates'] }}"
   loop_control:
     label: "{{ item }}"
