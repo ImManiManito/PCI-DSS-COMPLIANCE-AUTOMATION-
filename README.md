@@ -50,10 +50,10 @@ Not every activity is implemented yet. The table below reflects the current stat
 | FortiGate | `admin_login_failed` | Pending |
 | FortiGate | `configuration_changes` | Pending |
 | FortiGate | `security_events_and_forward_traffic` | Pending |
-| FortiGate | `system_events_7_days` | Pending |
+| FortiGate | `system_events_7_days` | Implemented (collection script, parser, report template, task) |
 | Check Point | `authentication failures`, `block-acceptance`, `checkpoint_audits`, `events_ips` | Pending (folder structure only) |
 | Wazuh | local SIEM integration | Pending |
 
-Only the **daily** playbook `chd_sad.yml` currently runs implemented tasks (FortiGate system events); the rest of the daily, weekly, monthly, and quarterly playbooks are placeholders to be filled in as each activity is developed. `scripts_cron/` is also currently empty, pending the scheduled executions for the activities above.
+Only the **daily** playbook `chd_sad.yml` (FortiGate system events, last 24 hours) and the **weekly** playbook `required_logs.yml` (FortiGate system events, last 7 days) currently run implemented tasks; the rest of the daily, weekly, monthly, and quarterly playbooks are placeholders to be filled in as each activity is developed. `scripts_cron/` is also currently empty, pending the scheduled executions for the activities above.
 
 FortiGate roles rely on shared helpers under `roles/fortigate/common/` (`fortigate_ssh.sh` for remote CLI execution and `send_mail_report.sh` for emailing evidence) and on `roles/fortigate/vars/vault.yml` for mail settings, which must be filled in and encrypted with Ansible Vault before use in production.

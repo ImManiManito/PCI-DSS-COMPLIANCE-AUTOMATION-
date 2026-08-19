@@ -35,7 +35,7 @@ trap 'rm -f "$COMMANDS_FILE"' EXIT
         echo "execute log filter field subtype ${SUBTYPE}"
         echo "execute log filter field level ${severity}"
         echo "execute log filter field date ${REPORT_DATE}"
-        echo "execute log filter view-lines 100"
+        echo "execute log filter view-lines 1000"
         echo "execute log display"
     done
 } > "$COMMANDS_FILE"

@@ -1,0 +1,11 @@
+==================================================================
+Evidencia PCI DSS - FortiGate System Events (Últimos 7 días)
+==================================================================
+Dispositivo            : {{ fortigate_device }}
+Tipo de evento         : {{ fortigate_event_label }} (subtype: {{ fortigate_event_subtype }})
+Severidades filtradas  : emergency, alert, critical, error
+Rango cubierto         : Últimos 7 días ({{ fortigate_system_events_7d_start_date }} a {{ fortigate_system_events_7d_end_date }})
+Generado el            : {{ now(fmt='%Y-%m-%d %H:%M:%S') }}
+==================================================================
+
+{{ fortigate_raw_output }}
