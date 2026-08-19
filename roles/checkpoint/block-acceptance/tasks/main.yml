@@ -1,0 +1,48 @@
+---
+- name: Checkpoint Block-Acceptance - Cargar credenciales de Infinity Portal (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/checkpoint/vars/vault.yml"
+
+- name: Checkpoint Block-Acceptance - Definir rango de fechas (últimos 7 días, 00:00 a 23:59)
+  ansible.builtin.set_fact:
+    checkpoint_block_acceptance_report_date: "{{ now(fmt='%Y-%m-%d') }}"
+    checkpoint_block_acceptance_start_time: "{{ lookup('pipe', 'date -u -d \"-7 day\" +%Y-%m-%dT00:00:00Z') }}"
+    checkpoint_block_acceptance_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59Z"
+    checkpoint_block_acceptance_evidence_dir: "{{ checkpoint_block_acceptance_evidence_dir | default('/opt/pci-dss-evidence/checkpoint/block_acceptance') }}"
+
+- name: Checkpoint Block-Acceptance - Crear directorio de evidencias
+  ansible.builtin.file:
+    path: "{{ checkpoint_block_acceptance_evidence_dir }}"
+    state: directory
+    mode: "0750"
+  delegate_to: localhost
+
+- name: Checkpoint Block-Acceptance - Consultar Infinity Events (todos los logs, sin filtrar) y generar evidencia CSV
+  ansible.builtin.shell:
+    cmd: >
+      bash "{{ playbook_dir }}/../../roles/checkpoint/block-acceptance/scripts/checkpoint_block_acceptance.sh"
+      "{{ checkpoint_infinity_auth_url }}"
+      "{{ checkpoint_infinity_events_url }}"
+      "{{ checkpoint_block_acceptance_start_time }}"
+      "{{ checkpoint_block_acceptance_end_time }}"
+      | python3 "{{ playbook_dir }}/../../roles/checkpoint/block-acceptance/scripts/parse_block_acceptance.py"
+      > "{{ checkpoint_block_acceptance_evidence_dir }}/Block-Acceptance_{{ checkpoint_block_acceptance_report_date }}.csv"
+  environment:
+    CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
+    CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
+  register: checkpoint_block_acceptance_result
+  changed_when: false
+  no_log: true
+  delegate_to: localhost
+
+- name: Checkpoint Block-Acceptance - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
+      - "{{ checkpoint_mail_from }}"
+      - "{{ checkpoint_mail_to }}"
+      - "Checkpoint Block-Acceptance (últimos 7 días) - Evidencia PCI DSS ({{ checkpoint_block_acceptance_report_date }})"
+      - "{{ checkpoint_block_acceptance_evidence_dir }}/Block-Acceptance_{{ checkpoint_block_acceptance_report_date }}.csv"
+  changed_when: false
+  delegate_to: localhost
