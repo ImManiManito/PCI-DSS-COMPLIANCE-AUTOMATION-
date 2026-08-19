@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Consulta eventos IPS en Check Point Infinity Events (Infinity Portal API) 
+# Consulta eventos de autenticación (VPN, Action=Block) en Check Point Infinity
+# Events (Infinity Portal API) y vuelca cada página de resultados JSON (una por
+# línea) a stdout.
+#
 # Autenticación: las credenciales (clientId/accessKey) se leen de las variables
 # de entorno CHECKPOINT_CLIENT_ID y CHECKPOINT_ACCESS_KEY (no se pasan como
 # argumentos para no exponerlas en la lista de procesos).
@@ -41,7 +44,8 @@ TOKEN="$(echo "$AUTH_RESPONSE" | jq -r '.data.token // empty')"
     exit 1
 }
 
-# 2) Consulta paginada de eventos IPS de las últimas 24h, trayendo todos los resultados.
+# 2) Consulta paginada de eventos de autenticación (blade VPN, action Block) de
+#    las últimas 24h, trayendo todos los resultados.
 PAGE_TOKEN=""
 
 while true; do
@@ -51,7 +55,8 @@ while true; do
         --arg pageToken "$PAGE_TOKEN" \
         '{
             filter: {
-                blades: ["IPS"],
+                blades: ["VPN"],
+                action: "Block",
                 timeframe: { start: $start, end: $end }
             },
             pageSize: 200

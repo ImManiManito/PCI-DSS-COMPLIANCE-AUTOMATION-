@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
-"""Parsea las páginas JSON de Infinity Events (IPS) y genera un CSV de evidencia PCI DSS."""
+"""Parsea las páginas JSON de Infinity Events (VPN/Block) y genera un CSV de evidencia PCI DSS.
 
+Columnas: Time, Cloud Service, Blade/Practice Type, Action, Severity,
+Source, Destination, User.
+
+Lee de stdin una página JSON por línea (la salida de checkpoint_auth_failures.sh)
+y escribe el CSV resultante en stdout.
+"""
 import csv
 import json
 import sys
@@ -9,13 +15,11 @@ CSV_HEADER = [
     "Time",
     "Cloud Service",
     "Blade/Practice Type",
-    
     "Action",
     "Severity",
     "Source",
     "Destination",
-    "Service",
-    "Port",
+    "User",
 ]
 
 
@@ -65,13 +69,12 @@ def main():
                 get_field(log, "severity", "Severity"),
                 get_field(log, "src", "source", "Source"),
                 get_field(log, "dst", "destination", "Destination"),
-                get_field(log, "service", "Service"),
-                get_field(log, "s_port", "dst_port", "port", "Port"),
+                get_field(log, "user", "user_name", "xauthuser", "User"),
             ])
             total += 1
 
     if total == 0:
-        sys.stderr.write("ADVERTENCIA: No se encontraron eventos IPS para el rango solicitado.\n")
+        sys.stderr.write("ADVERTENCIA: No se encontraron eventos de autenticación para el rango solicitado.\n")
 
 
 if __name__ == "__main__":

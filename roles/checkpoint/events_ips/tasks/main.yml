@@ -34,3 +34,15 @@
   changed_when: false
   no_log: true
   delegate_to: localhost
+
+- name: Checkpoint Events IPS - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
+      - "{{ checkpoint_mail_from }}"
+      - "{{ checkpoint_mail_to }}"
+      - "Checkpoint Events IPS - Evidencia PCI DSS ({{ checkpoint_events_ips_report_date }})"
+      - "{{ checkpoint_events_ips_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb_{{ checkpoint_events_ips_report_date }}.csv"
+  changed_when: false
+  delegate_to: localhost

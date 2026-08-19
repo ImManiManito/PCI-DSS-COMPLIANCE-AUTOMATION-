@@ -1,0 +1,48 @@
+---
+- name: Checkpoint Authentication Failures - Cargar credenciales de Infinity Portal (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/checkpoint/vars/vault.yml"
+
+- name: Checkpoint Authentication Failures - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
+  ansible.builtin.set_fact:
+    checkpoint_auth_failures_report_date: "{{ now(fmt='%Y-%m-%d') }}"
+    checkpoint_auth_failures_start_time: "{{ now(fmt='%Y-%m-%d') }}T00:00:00Z"
+    checkpoint_auth_failures_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59Z"
+    checkpoint_auth_failures_evidence_dir: "{{ checkpoint_auth_failures_evidence_dir | default('/opt/pci-dss-evidence/checkpoint/authentication_failures') }}"
+
+- name: Checkpoint Authentication Failures - Crear directorio de evidencias
+  ansible.builtin.file:
+    path: "{{ checkpoint_auth_failures_evidence_dir }}"
+    state: directory
+    mode: "0750"
+  delegate_to: localhost
+
+- name: Checkpoint Authentication Failures - Consultar Infinity Events y generar evidencia CSV
+  ansible.builtin.shell:
+    cmd: >
+      bash "{{ playbook_dir }}/../../roles/checkpoint/authentication failures/scripts/checkpoint_auth_failures.sh"
+      "{{ checkpoint_infinity_auth_url }}"
+      "{{ checkpoint_infinity_events_url }}"
+      "{{ checkpoint_auth_failures_start_time }}"
+      "{{ checkpoint_auth_failures_end_time }}"
+      | python3 "{{ playbook_dir }}/../../roles/checkpoint/authentication failures/scripts/parse_auth_failures.py"
+      > "{{ checkpoint_auth_failures_evidence_dir }}/Fallos de autenticacion_{{ checkpoint_auth_failures_report_date }}.csv"
+  environment:
+    CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
+    CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
+  register: checkpoint_auth_failures_result
+  changed_when: false
+  no_log: true
+  delegate_to: localhost
+
+- name: Checkpoint Authentication Failures - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
+      - "{{ checkpoint_mail_from }}"
+      - "{{ checkpoint_mail_to }}"
+      - "Checkpoint Authentication Failures - Evidencia PCI DSS ({{ checkpoint_auth_failures_report_date }})"
+      - "{{ checkpoint_auth_failures_evidence_dir }}/Fallos de autenticacion_{{ checkpoint_auth_failures_report_date }}.csv"
+  changed_when: false
+  delegate_to: localhost

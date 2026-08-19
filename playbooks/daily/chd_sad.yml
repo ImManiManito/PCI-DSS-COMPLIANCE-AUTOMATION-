@@ -8,11 +8,5 @@
     - name: Execute FortiGate - System Events
       include_tasks: ../../roles/fortigate/system_events/tasks/main.yml
 
-    - name: Execute FortiGate - Admin Login Failed
-      include_tasks: ../../roles/fortigate/admin_login_failed/tasks/main.yml
-
-    - name: Execute FortiGate - Configuration Changes
-      include_tasks: ../../roles/fortigate/configuration_changes/tasks/main.yml
-
     - name: Execute Checkpoint - Events IPS
       include_tasks: ../../roles/checkpoint/events_ips/tasks/main.yml

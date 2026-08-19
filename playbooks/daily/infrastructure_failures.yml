@@ -1,0 +1,9 @@
+---
+- name: Infrastructure Failures - Daily Security Activities
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Execute FortiGate - Configuration Changes
+      include_tasks: ../../roles/fortigate/configuration_changes/tasks/main.yml
