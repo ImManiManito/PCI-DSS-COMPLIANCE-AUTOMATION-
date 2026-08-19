@@ -36,4 +36,24 @@ El proyecto también utiliza Ansible Vault para proteger credenciales, claves de
 
 Idealmente, Ansible debería ejecutarse en una máquina virtual o activo dedicado, separado del SIEM. Para este proyecto, debido a las limitaciones actuales de infraestructura, Ansible se ejecuta en el mismo activo que aloja el SIEM (Wazuh). Consulta [docs/architecture.es.md](docs/architecture.es.md) (también disponible [en inglés](docs/architecture.md)) para más detalles y las consideraciones de seguridad derivadas de esta decisión.
 
+El inventario (`inventory/hosts.ini`) actualmente define tres grupos: `fortigates` (remoto, vía SSH), `checkpoint` (conexión local) y `wazuh` (conexión local).
+
 El objetivo principal de esta iniciativa es reducir los procesos manuales, mejorar la consistencia y confiabilidad de las actividades de seguridad, y facilitar la generación de evidencia para las revisiones y auditorías de cumplimiento PCI DSS.
+
+## Estado de implementación
+
+No todas las actividades están implementadas todavía. La siguiente tabla refleja el estado actual del repositorio.
+
+| Plataforma | Actividad | Estado |
+|---|---|---|
+| FortiGate | `system_events` | Implementado (script de recolección, parser, plantilla de reporte, tarea) |
+| FortiGate | `admin_login_failed` | Pendiente |
+| FortiGate | `configuration_changes` | Pendiente |
+| FortiGate | `security_events_and_forward_traffic` | Pendiente |
+| FortiGate | `system_events_7_days` | Pendiente |
+| Check Point | `authentication failures`, `block-acceptance`, `checkpoint_audits`, `events_ips` | Pendiente (solo estructura de carpetas) |
+| Wazuh | integración local del SIEM | Pendiente |
+
+Actualmente solo el playbook **diario** `chd_sad.yml` ejecuta tareas implementadas (eventos de sistema de FortiGate); el resto de los playbooks diarios, semanales, mensuales y trimestrales son plantillas pendientes de completar a medida que se desarrolle cada actividad. `scripts_cron/` también está vacío por ahora, a la espera de las ejecuciones programadas de las actividades anteriores.
+
+Los roles de FortiGate dependen de utilidades compartidas en `roles/fortigate/common/` (`fortigate_ssh.sh` para la ejecución remota por CLI y `send_mail_report.sh` para el envío de evidencia por correo) y de `roles/fortigate/vars/vault.yml` para la configuración de correo, el cual debe completarse y cifrarse con Ansible Vault antes de usarse en producción.

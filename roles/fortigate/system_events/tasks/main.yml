@@ -1,4 +1,8 @@
 ---
+- name: FortiGate System Events - Cargar variables de correo (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/fortigate/vars/vault.yml"
+
 - name: FortiGate System Events - Definir fecha del reporte (últimas 24 horas)
   ansible.builtin.set_fact:
     fortigate_system_events_report_date: "{{ now(fmt='%Y-%m-%d') }}"
@@ -57,4 +61,18 @@
     fortigate_event_subtype: "{{ item.1.subtype }}"
     fortigate_event_label: "{{ item.1.label }}"
     fortigate_raw_output: "{{ fortigate_system_events_results.results[fortigate_system_events_idx].stdout }}"
+  delegate_to: localhost
+
+- name: FortiGate System Events - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+      - "{{ fortigate_mail_from }}"
+      - "{{ fortigate_mail_to }}"
+      - "FortiGate System Events - Evidencia PCI DSS ({{ fortigate_system_events_report_date }})"
+      - "{{ fortigate_system_events_evidence_dir }}/Eventos_generales_de_seguridad.txt"
+      - "{{ fortigate_system_events_evidence_dir }}/Fallos_de_autenticacionVPN.txt"
+      - "{{ fortigate_system_events_evidence_dir }}/Eventos_de_usuariosVPN.txt"
+  changed_when: false
   delegate_to: localhost
