@@ -1,0 +1,64 @@
+---
+- name: FortiGate Forward Traffic 7 días - Cargar variables de correo (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/fortigate/vars/vault.yml"
+
+- name: FortiGate Forward Traffic 7 días - Definir rango del reporte (últimos 7 días)
+  ansible.builtin.set_fact:
+    fortigate_forward_traffic_end_date: "{{ now(fmt='%Y-%m-%d') }}"
+    fortigate_forward_traffic_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
+    fortigate_forward_traffic_evidence_dir: "{{ fortigate_forward_traffic_evidence_dir | default('/opt/pci-dss-evidence/fortigate/security_events_and_forward_traffic') }}"
+
+- name: FortiGate Forward Traffic 7 días - Crear directorio de evidencias
+  ansible.builtin.file:
+    path: "{{ fortigate_forward_traffic_evidence_dir }}"
+    state: directory
+    mode: "0750"
+  delegate_to: localhost
+
+- name: FortiGate Forward Traffic 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/security_events_and_forward_traffic/scripts/fortigate_forward_traffic_7_days.sh"
+      - "{{ hostvars[item].ansible_host }}"
+      - "{{ hostvars[item].ansible_port }}"
+      - "{{ hostvars[item].ansible_user }}"
+      - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+      - "{{ item }}"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+    index_var: fortigate_forward_traffic_idx
+  register: fortigate_forward_traffic_results
+  changed_when: false
+  delegate_to: localhost
+
+- name: FortiGate Forward Traffic 7 días - Generar evidencia en archivos .txt
+  ansible.builtin.template:
+    src: forward_traffic_report.txt.j2
+    dest: "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_seguridad_y_trafico_forward_{{ item }}.txt"
+    mode: "0640"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+    index_var: fortigate_forward_traffic_idx
+  vars:
+    fortigate_device: "{{ item }}"
+    fortigate_raw_output: "{{ fortigate_forward_traffic_results.results[fortigate_forward_traffic_idx].stdout }}"
+  delegate_to: localhost
+
+- name: FortiGate Forward Traffic 7 días - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+      - "{{ fortigate_mail_from }}"
+      - "{{ fortigate_mail_to }}"
+      - "FortiGate Security Events and Forward Traffic 7 días - Evidencia PCI DSS ({{ fortigate_forward_traffic_start_date }} a {{ fortigate_forward_traffic_end_date }})"
+      - "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_seguridad_y_trafico_forward_{{ item }}.txt"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  delegate_to: localhost
