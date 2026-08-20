@@ -1,0 +1,62 @@
+---
+- name: FortiGate Configuration Changes - Cargar variables de correo (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/fortigate/vars/vault.yml"
+
+- name: FortiGate Configuration Changes - Definir fecha del reporte (últimas 24 horas)
+  ansible.builtin.set_fact:
+    fortigate_configuration_changes_report_date: "{{ now(fmt='%Y-%m-%d') }}"
+    fortigate_configuration_changes_evidence_dir: "{{ fortigate_configuration_changes_evidence_dir | default('/opt/pci-dss-evidence/fortigate/configuration_changes') }}"
+
+- name: FortiGate Configuration Changes - Crear directorio de evidencias
+  ansible.builtin.file:
+    path: "{{ fortigate_configuration_changes_evidence_dir }}"
+    state: directory
+    mode: "0750"
+  delegate_to: localhost
+
+- name: FortiGate Configuration Changes - Ejecutar recolección de logs vía CLI (svc_ansible)
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/configuration_changes/scripts/fortigate_configuration_changes.sh"
+      - "{{ hostvars[item].ansible_host }}"
+      - "{{ hostvars[item].ansible_port }}"
+      - "{{ hostvars[item].ansible_user }}"
+      - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+      - "{{ fortigate_configuration_changes_report_date }}"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+    index_var: fortigate_configuration_changes_idx
+  register: fortigate_configuration_changes_results
+  changed_when: false
+  delegate_to: localhost
+
+- name: FortiGate Configuration Changes - Generar evidencia en archivo .txt
+  ansible.builtin.template:
+    src: configuration_changes_report.txt.j2
+    dest: "{{ fortigate_configuration_changes_evidence_dir }}/Cambios_de_configuracion_{{ item }}.txt"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+    index_var: fortigate_configuration_changes_idx
+  vars:
+    fortigate_device: "{{ item }}"
+    fortigate_raw_output: "{{ fortigate_configuration_changes_results.results[fortigate_configuration_changes_idx].stdout }}"
+  delegate_to: localhost
+
+- name: FortiGate Configuration Changes - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+      - "{{ fortigate_mail_from }}"
+      - "{{ fortigate_mail_to }}"
+      - "FortiGate Configuration Changes - Evidencia PCI DSS ({{ fortigate_configuration_changes_report_date }})"
+      - "{{ fortigate_configuration_changes_evidence_dir }}/Cambios_de_configuracion_{{ item }}.txt"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  delegate_to: localhost

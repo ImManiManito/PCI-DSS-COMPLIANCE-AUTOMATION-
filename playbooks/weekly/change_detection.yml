@@ -7,3 +7,6 @@
 
     - name: Execute FortiGate - System Events (últimos 7 días)
       include_tasks: ../../roles/fortigate/system_events_7_days/tasks/main.yml
+
+    - name: Execute Checkpoint - Events IPS (últimos 7 días)
+      include_tasks: ../../roles/checkpoint/events_ips_7_days/tasks/main.yml

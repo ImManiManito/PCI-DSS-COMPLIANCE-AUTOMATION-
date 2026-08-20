@@ -49,13 +49,14 @@ Not every activity is implemented yet. The table below reflects the current stat
 | FortiGate | `system_events` | Implemented (collection script, parser, report template, task) |
 | FortiGate | `system_events_7_days` | Implemented (collection script, parser, report template, task) |
 | FortiGate | `security_events_and_forward_traffic` | Implemented (collection script, parser, report templates, task) |
-| FortiGate | `admin_login_failed` | Pending |
-| FortiGate | `configuration_changes` | Pending |
+| FortiGate | `admin_login_failed` | Implemented (collection script, parser, report template, task, email report) |
+| FortiGate | `configuration_changes` | Implemented (collection script, parser, report template, task, email report) |
 | Check Point | `authentication failures` | Implemented (Infinity Portal Events API script, parser, task, email report) |
 | Check Point | `events_ips` | Implemented (Infinity Portal Events API script, parser, task, email report) |
-| Check Point | `block-acceptance`, `checkpoint_audits` | Pending (folder structure only) |
+| Check Point | `events_ips_7_days` | Implemented (Infinity Portal Events API script, parser, task, email report) |
+| Check Point | `block-acceptance` | Implemented (Infinity Portal Events API script, parser, task, email report) |
 | Wazuh | local SIEM integration | Pending |
 
-Daily playbook `chd_sad.yml` runs FortiGate system events and Check Point IPS events. Daily playbook `compromised_passwords.yml` runs Check Point authentication failures (implemented) and FortiGate admin login failed (still pending, empty task). Daily playbook `infrastructure_failures.yml` references FortiGate configuration changes, which is still pending (empty task). Weekly playbook `change_detection.yml` runs FortiGate system events and security/forward-traffic events over the last 7 days; `required_logs.yml` is still an empty placeholder. All monthly and quarterly playbooks remain empty placeholders. `scripts_cron/` is also currently empty, pending the scheduled executions for the activities above.
+Daily playbook `chd_sad.yml` runs FortiGate system events and Check Point IPS events. Daily playbook `compromised_passwords.yml` runs Check Point authentication failures and FortiGate admin login failed (both implemented). Daily playbook `infrastructure_failures.yml` runs FortiGate configuration changes (implemented). Weekly playbook `change_detection.yml` runs FortiGate system events and Check Point IPS events over the last 7 days; `required_logs.yml` runs FortiGate security/forward-traffic events and Check Point block-acceptance over the last 7 days (both implemented). All monthly and quarterly playbooks remain empty placeholders. `scripts_cron/` is also currently empty, pending the scheduled executions for the activities above.
 
 FortiGate roles rely on shared helpers under `roles/fortigate/common/` (`fortigate_ssh.sh` for remote CLI execution and `send_mail_report.sh` for emailing evidence) and on `roles/fortigate/vars/vault.yml` for mail settings, which must be filled in and encrypted with Ansible Vault before use in production. Check Point roles authenticate against the Infinity Portal Events API using credentials defined in `roles/checkpoint/vars/vault.yml` (client ID, access key, API endpoints, and mail settings), which must also be filled in and encrypted before production use.
