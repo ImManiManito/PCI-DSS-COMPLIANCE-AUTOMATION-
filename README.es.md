@@ -55,9 +55,9 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 | Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | 8.2.6 | Pendiente |
 | Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | 10.4.2.1.a, 10.4.2.1.b | Pendiente |
 | Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | 7.2.4.a, 7.2.4.b | Pendiente |
-| Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
+| Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | 10.5.1.a, 10.5.1.b, 10.5.1.c | Pendiente |
 | Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | 8.3.9, 8.3.10.1 | Pendiente |
-| Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
+| Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | 12.3.3 | Pendiente |
 | Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Pendiente |
 
 `scripts_cron/` está vacío por ahora, a la espera de las ejecuciones programadas de las actividades anteriores.
@@ -137,6 +137,15 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 
 **Actividad de cuentas — 8.2.6**
 > Las cuentas de usuario inactivas se eliminan o inhabilitan dentro de los 90 días de inactividad.
+
+**Registros disponibles — 10.5.1.a / 10.5.1.b / 10.5.1.c**
+> Conserve el historial de los registros de auditoría durante 12 meses como mínimo, teniendo al menos los tres últimos meses inmediatamente disponibles para su análisis.
+
+**Revisión de suites y protocolos — 12.3.3**
+> Los protocolos y conjuntos de cifrado criptográfico en uso se documentan cada 12 meses y revisan al menos una vez cada 3 meses, incluyendo al menos lo siguiente:
+> - Un inventario actualizado de todos los protocolos y conjuntos de cifrado criptográfico en uso, incluyendo su propósito y dónde se utilizan.
+> - Monitoreo activo de las tendencias de la industria con respecto a la viabilidad continua de todos los protocolos y conjuntos de cifrado criptográfico en uso.
+> - Una estrategia documentada para responder a los cambios.
 
 **Evaluaciones periódicas — 10.4.2.1.a / 10.4.2.1.b**
 > La frecuencia de las evaluaciones periódicas de los componentes del sistema identificados (no definidos en el Requisito 10.4.1) se define en el análisis de riesgo específico de la entidad, el cual se realiza de acuerdo con todos los elementos especificados en el Requisito 12.3.1.

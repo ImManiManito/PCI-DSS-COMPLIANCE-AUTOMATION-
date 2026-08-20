@@ -55,9 +55,9 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | 8.2.6 | Pending |
 | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | 10.4.2.1.a, 10.4.2.1.b | Pending |
 | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | 7.2.4.a, 7.2.4.b | Pending |
-| Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending mapping | Pending |
+| Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | 10.5.1.a, 10.5.1.b, 10.5.1.c | Pending |
 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | 8.3.9, 8.3.10.1 | Pending |
-| Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending mapping | Pending |
+| Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | 12.3.3 | Pending |
 | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Pending |
 
 `scripts_cron/` is currently empty, pending the scheduled executions for the activities above.
@@ -137,6 +137,15 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 
 **Account Activity — 8.2.6**
 > Inactive user accounts are removed or disabled within 90 days of inactivity.
+
+**Available Logs — 10.5.1.a / 10.5.1.b / 10.5.1.c**
+> Retain audit log history for at least 12 months, with at least the most recent three months immediately available for analysis.
+
+**Review of Suites and Protocols — 12.3.3**
+> Cryptographic cipher suites and protocols in use are documented every 12 months and reviewed at least once every 3 months, including at least the following:
+> - An up-to-date inventory of all cryptographic cipher suites and protocols in use, including purpose and where used.
+> - Active monitoring of industry trends regarding continued viability of all cryptographic cipher suites and protocols in use.
+> - A documented strategy to respond to anticipated changes in cryptographic vulnerabilities.
 
 **Periodic Evaluations — 10.4.2.1.a / 10.4.2.1.b**
 > The frequency of periodic log reviews for system components identified as not being at risk for evasion (not defined in Requirement 10.4.1) is defined in the entity's targeted risk analysis, which is performed according to all elements specified in Requirement 12.3.1.
