@@ -49,12 +49,12 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | 10.4.1.a, 10.4.1.b | Implemented |
 | Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implemented |
 | Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implemented |
-| Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Pending mapping | Implemented |
+| Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | 11.5.2.a, 11.5.2.b | Implemented |
 | Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | 10.4.2.a, 10.4.2.b | Implemented |
-| Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Pending mapping | Pending |
-| Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Pending mapping | Pending |
-| Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Pending mapping | Pending |
-| Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Pending mapping | Pending |
+| Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Pending |
+| Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | 8.2.6 | Pending |
+| Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | 10.4.2.1.a, 10.4.2.1.b | Pending |
+| Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | 7.2.4.a, 7.2.4.b | Pending |
 | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending mapping | Pending |
 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Pending mapping | Pending |
 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending mapping | Pending |
@@ -115,6 +115,31 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 **Required Logs — 10.4.2.a / 10.4.2.b**
 > 10.4.2.a: Examine security policies and procedures to verify that processes are defined for reviewing logs of all other system components periodically.
 > 10.4.2.b: Examine documented results of log reviews and interview personnel to verify that log reviews are performed periodically.
+
+**Change Detection — 11.5.2.a / 11.5.2.b**
+> A change-detection mechanism (for example, file integrity monitoring tools) is deployed as follows:
+> - To alert personnel to unauthorized modification (including changes, additions, and deletions) of critical files.
+> - To perform critical file comparisons at least once weekly.
+
+**Privileged Accounts — 7.2.4.a / 7.2.4.b**
+> All user accounts and related access privileges, including third-party/vendor accounts, are reviewed as follows:
+> - At least once every six months.
+> - To ensure user accounts and access remain appropriate based on job function.
+> - Any inappropriate access is addressed.
+> - Management acknowledges that access remains appropriate.
+
+**Access Logs — 7.2.5.1.a / 7.2.5.1.b / 7.2.5.1.c**
+> All application and system accounts and related access privileges are reviewed as follows:
+> - Periodically (at the frequency defined in the entity's targeted risk analysis, performed according to all elements specified in Requirement 12.3.1).
+> - The application/system access remains appropriate for the function being performed.
+> - Any inappropriate access is addressed.
+> - Management acknowledges that access remains appropriate.
+
+**Account Activity — 8.2.6**
+> Inactive user accounts are removed or disabled within 90 days of inactivity.
+
+**Periodic Evaluations — 10.4.2.1.a / 10.4.2.1.b**
+> The frequency of periodic log reviews for system components identified as not being at risk for evasion (not defined in Requirement 10.4.1) is defined in the entity's targeted risk analysis, which is performed according to all elements specified in Requirement 12.3.1.
 
 Daily playbook `chd_sad.yml` runs FortiGate system events and Check Point IPS events. Daily playbook `compromised_passwords.yml` runs Check Point authentication failures and FortiGate admin login failed (both implemented). Daily playbook `infrastructure_failures.yml` runs FortiGate configuration changes (implemented). Weekly playbook `change_detection.yml` runs FortiGate system events and Check Point IPS events over the last 7 days; `required_logs.yml` runs FortiGate security/forward-traffic events and Check Point block-acceptance over the last 7 days (both implemented). All monthly and quarterly playbooks remain empty placeholders.
 

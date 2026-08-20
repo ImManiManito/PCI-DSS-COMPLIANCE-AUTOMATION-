@@ -49,12 +49,12 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | 10.4.1.a, 10.4.1.b | Implementado |
 | Contraseñas comprometidas (`playbooks/daily/compromised_passwords.yml`) | Diaria | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implementado |
 | Fallas de infraestructura (`playbooks/daily/infrastructure_failures.yml`) | Diaria | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implementado |
-| Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Pendiente de mapeo | Implementado |
+| Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | 11.5.2.a, 11.5.2.b | Implementado |
 | Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | 10.4.2.a, 10.4.2.b | Implementado |
-| Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | Pendiente de mapeo | Pendiente |
-| Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | Pendiente de mapeo | Pendiente |
-| Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | Pendiente de mapeo | Pendiente |
-| Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | Pendiente de mapeo | Pendiente |
+| Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Pendiente |
+| Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | 8.2.6 | Pendiente |
+| Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | 10.4.2.1.a, 10.4.2.1.b | Pendiente |
+| Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | 7.2.4.a, 7.2.4.b | Pendiente |
 | Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
 | Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
 | Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
@@ -115,6 +115,31 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 **Registros requeridos — 10.4.2.a / 10.4.2.b**
 > 10.4.2.a: Examinar las políticas y procedimientos de seguridad para verificar que existan procesos definidos para revisar periódicamente los registros de todos los demás componentes del sistema.
 > 10.4.2.b: Examinar los resultados documentados de las revisiones de registros y entrevistar al personal para verificar que las revisiones de registros se realicen periódicamente.
+
+**Detección de cambios — 11.5.2.a / 11.5.2.b**
+> Un mecanismo de detección de cambios (por ejemplo, herramientas de monitoreo de integridad de archivos) se despliega como sigue:
+> - Para alertar al personal sobre modificaciones no autorizadas (incluyendo cambios, adiciones y eliminaciones) de archivos críticos.
+> - Para realizar comparaciones de archivos críticos al menos una vez por semana.
+
+**Cuentas privilegiadas — 7.2.4.a / 7.2.4.b**
+> Todas las cuentas de usuario y los privilegios de acceso relacionados, incluyendo las cuentas de terceros/proveedores, se revisan de la siguiente manera:
+> - Al menos una vez cada seis meses.
+> - Para asegurarse de que las cuentas de usuario y el acceso sigan siendo apropiados según la función del trabajo.
+> - Se aborda cualquier acceso inadecuado.
+> - La gerencia reconoce que el acceso sigue siendo apropiado.
+
+**Registros de acceso — 7.2.5.1.a / 7.2.5.1.b / 7.2.5.1.c**
+> Todo el acceso de aplicaciones y cuentas del sistema y los privilegios de acceso relacionados se revisan de la siguiente manera:
+> - Periódicamente (a una frecuencia definida en el análisis de riesgos específico de la entidad, el cual se desarrolla de acuerdo con todos los elementos especificados en el Requisito 12.3.1).
+> - El acceso a la aplicación/sistema sigue siendo apropiado para la función que se está realizando.
+> - Se aborda cualquier acceso inadecuado.
+> - La gerencia reconoce que el acceso sigue siendo apropiado.
+
+**Actividad de cuentas — 8.2.6**
+> Las cuentas de usuario inactivas se eliminan o inhabilitan dentro de los 90 días de inactividad.
+
+**Evaluaciones periódicas — 10.4.2.1.a / 10.4.2.1.b**
+> La frecuencia de las evaluaciones periódicas de los componentes del sistema identificados (no definidos en el Requisito 10.4.1) se define en el análisis de riesgo específico de la entidad, el cual se realiza de acuerdo con todos los elementos especificados en el Requisito 12.3.1.
 
 El playbook diario `chd_sad.yml` ejecuta eventos de sistema de FortiGate y eventos IPS de Check Point. El playbook diario `compromised_passwords.yml` ejecuta fallos de autenticación de Check Point y fallos de inicio de sesión de administrador de FortiGate (ambos implementados). El playbook diario `infrastructure_failures.yml` ejecuta los cambios de configuración de FortiGate (implementado). El playbook semanal `change_detection.yml` ejecuta eventos de sistema de FortiGate y eventos IPS de Check Point de los últimos 7 días; `required_logs.yml` ejecuta eventos de seguridad/tráfico saliente de FortiGate y block-acceptance de Check Point de los últimos 7 días (ambos implementados). Todos los playbooks mensuales y trimestrales siguen siendo plantillas vacías.
 
