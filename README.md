@@ -40,9 +40,79 @@ The inventory (`inventory/hosts.ini`) currently defines three groups: `fortigate
 
 The main goal of this initiative is to reduce manual processes, improve the consistency and reliability of security activities, and facilitate the generation of evidence for PCI DSS compliance reviews and audits.
 
-## Implementation status
+## PCI DSS compliance mapping
 
-Not every activity is implemented yet. The table below reflects the current state of the repository.
+The table below maps each activity (playbook) to the PCI DSS requirements it satisfies and the frequency at which it runs.
+
+| Activity (playbook) | Frequency | PCI DSS requirements | Status |
+|---|---|---|---|
+| CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | 10.4.1.a, 10.4.1.b | Implemented |
+| Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implemented |
+| Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implemented |
+| Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Pending mapping | Implemented |
+| Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | Pending mapping | Implemented |
+| Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Pending mapping | Pending |
+| Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Pending mapping | Pending |
+| Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Pending mapping | Pending |
+| Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Pending mapping | Pending |
+| Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending mapping | Pending |
+| Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Pending mapping | Pending |
+| Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending mapping | Pending |
+| Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Pending mapping | Pending |
+
+`scripts_cron/` is currently empty, pending the scheduled executions for the activities above.
+
+### Requirement detail
+
+**CHD SAD — 10.4.1.a / 10.4.1.b**
+> The following audit logs are reviewed at least once daily:
+> - All security events.
+> - Logs of all system components that store, process, or transmit CHD and/or SAD.
+> - Logs of all critical system components.
+> - Logs of all servers and system components that perform security functions (for example, network security controls, intrusion-detection/intrusion-prevention systems (IDS/IPS), authentication servers).
+
+**Compromised Passwords — 8.6.3.a / 8.6.3.b / 8.6.3.c**
+> Passwords/passphrases for any application and system accounts are protected against misuse as follows:
+> - System and application accounts are changed periodically (at the frequency defined in the entity's targeted risk analysis, performed according to all elements specified in Requirement 12.3.1) and upon suspicion or confirmation of compromise.
+> - Passwords/passphrases are constructed with sufficient complexity appropriate for how frequently the entity changes the passwords/passphrases.
+
+**Infrastructure Failures — 10.7.1.a / 10.7.1.b, 10.7.2.a / 10.7.2.b, 10.7.3.a / 10.7.3.b**
+
+*10.7.1.a / 10.7.1.b (additional requirement for service providers only):*
+> Failures of critical security control systems are detected, alerted, and addressed promptly, including but not limited to failure of the following critical security control systems:
+> - Network security controls
+> - IDS/IPS
+> - FIM
+> - Anti-malware solutions
+> - Physical access controls
+> - Logical access controls
+> - Audit logging mechanisms
+> - Segmentation controls (if used)
+
+*10.7.2.a / 10.7.2.b:*
+> Failures of critical security control systems are detected, alerted, and addressed promptly, including but not limited to failure of the following critical security control systems:
+> - Network security controls
+> - IDS/IPS
+> - Change-detection mechanisms
+> - Anti-malware solutions
+> - Physical access controls
+> - Logical access controls
+> - Audit logging mechanisms
+> - Segmentation controls (if used)
+> - Audit log review mechanisms
+> - Automated security testing tools (if used)
+
+*10.7.3.a / 10.7.3.b:*
+> Failures of any critical security control systems are responded to promptly, including but not limited to:
+> - Restoring security functions.
+> - Identifying and documenting the duration (date and time from start to end) of the security failure.
+> - Identifying and documenting the cause(s) of failure and documenting required remediation.
+> - Identifying and addressing any security issues that arose during the failure.
+> - Determining whether further actions are required as a result of the security failure.
+> - Implementing controls to prevent the cause of the failure from reoccurring.
+> - Resuming monitoring of security controls.
+
+### Platform-level implementation detail
 
 | Platform | Activity | Status |
 |---|---|---|
@@ -57,6 +127,6 @@ Not every activity is implemented yet. The table below reflects the current stat
 | Check Point | `block-acceptance` | Implemented (Infinity Portal Events API script, parser, task, email report) |
 | Wazuh | local SIEM integration | Pending |
 
-Daily playbook `chd_sad.yml` runs FortiGate system events and Check Point IPS events. Daily playbook `compromised_passwords.yml` runs Check Point authentication failures and FortiGate admin login failed (both implemented). Daily playbook `infrastructure_failures.yml` runs FortiGate configuration changes (implemented). Weekly playbook `change_detection.yml` runs FortiGate system events and Check Point IPS events over the last 7 days; `required_logs.yml` runs FortiGate security/forward-traffic events and Check Point block-acceptance over the last 7 days (both implemented). All monthly and quarterly playbooks remain empty placeholders. `scripts_cron/` is also currently empty, pending the scheduled executions for the activities above.
+Daily playbook `chd_sad.yml` runs FortiGate system events and Check Point IPS events. Daily playbook `compromised_passwords.yml` runs Check Point authentication failures and FortiGate admin login failed (both implemented). Daily playbook `infrastructure_failures.yml` runs FortiGate configuration changes (implemented). Weekly playbook `change_detection.yml` runs FortiGate system events and Check Point IPS events over the last 7 days; `required_logs.yml` runs FortiGate security/forward-traffic events and Check Point block-acceptance over the last 7 days (both implemented). All monthly and quarterly playbooks remain empty placeholders.
 
 FortiGate roles rely on shared helpers under `roles/fortigate/common/` (`fortigate_ssh.sh` for remote CLI execution and `send_mail_report.sh` for emailing evidence) and on `roles/fortigate/vars/vault.yml` for mail settings, which must be filled in and encrypted with Ansible Vault before use in production. Check Point roles authenticate against the Infinity Portal Events API using credentials defined in `roles/checkpoint/vars/vault.yml` (client ID, access key, API endpoints, and mail settings), which must also be filled in and encrypted before production use.
