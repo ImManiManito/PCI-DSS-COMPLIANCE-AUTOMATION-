@@ -144,14 +144,10 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 **Cambios de contraseña — 8.3.9 / 8.3.10.1**
 > 8.3.9: Si las contraseñas/frases de paso se utilizan como el único factor de autenticación para el acceso del usuario (es decir, en cualquier implementación de autenticación de factor único), entonces:
 > - Las contraseñas/frases de paso se cambian al menos una vez cada 90 días,
->
-> O
 > - La postura de seguridad de las cuentas se analiza dinámicamente y el acceso a los recursos en tiempo real se determina automáticamente de acuerdo a dicha postura de seguridad.
 >
 > 8.3.10.1 (requisito adicional solo para proveedores de servicios): Si las contraseñas/frases de paso se utilizan como el único factor de autenticación para el acceso del usuario del cliente (es decir, en cualquier implementación de autenticación de factor único), entonces:
 > - Las contraseñas/frases de paso se cambian al menos una vez cada 90 días,
->
-> O
 > - La postura de seguridad de las cuentas se analiza dinámicamente y el acceso a los recursos en tiempo real se determina automáticamente de acuerdo a dicha postura.
 
 **Puntos de acceso inalámbrico — 11.2.1.a / 11.2.1.b / 11.2.1.c / 11.2.1.d**

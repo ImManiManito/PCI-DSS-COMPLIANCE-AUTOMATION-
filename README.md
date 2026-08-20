@@ -144,14 +144,10 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 **Password Changes — 8.3.9 / 8.3.10.1**
 > 8.3.9: If passwords/passphrases are used as the only authentication factor for user access (i.e., in any single-factor authentication implementation), then either:
 > - Passwords/passphrases are changed at least once every 90 days,
->
-> OR
 > - The security posture of accounts is dynamically analyzed, and real-time access to resources is automatically determined accordingly.
 >
 > 8.3.10.1 (additional requirement for service providers only): If passwords/passphrases are used as the only authentication factor for customer user access (i.e., in any single-factor authentication implementation), then either:
 > - Passwords/passphrases are changed at least once every 90 days,
->
-> OR
 > - The security posture of accounts is dynamically analyzed, and real-time access to resources is automatically determined accordingly.
 
 **Wireless Access Points — 11.2.1.a / 11.2.1.b / 11.2.1.c / 11.2.1.d**
