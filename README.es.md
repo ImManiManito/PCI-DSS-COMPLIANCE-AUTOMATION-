@@ -116,21 +116,6 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 > 10.4.2.a: Examinar las políticas y procedimientos de seguridad para verificar que existan procesos definidos para revisar periódicamente los registros de todos los demás componentes del sistema.
 > 10.4.2.b: Examinar los resultados documentados de las revisiones de registros y entrevistar al personal para verificar que las revisiones de registros se realicen periódicamente.
 
-### Detalle de implementación a nivel de plataforma
-
-| Plataforma | Actividad | Estado |
-|---|---|---|
-| FortiGate | `system_events` | Implementado (script de recolección, parser, plantilla de reporte, tarea) |
-| FortiGate | `system_events_7_days` | Implementado (script de recolección, parser, plantilla de reporte, tarea) |
-| FortiGate | `security_events_and_forward_traffic` | Implementado (script de recolección, parser, plantillas de reporte, tarea) |
-| FortiGate | `admin_login_failed` | Implementado (script de recolección, parser, plantilla de reporte, tarea, envío de reporte por correo) |
-| FortiGate | `configuration_changes` | Implementado (script de recolección, parser, plantilla de reporte, tarea, envío de reporte por correo) |
-| Check Point | `authentication failures` | Implementado (script contra la API de Infinity Portal, parser, tarea, envío de reporte por correo) |
-| Check Point | `events_ips` | Implementado (script contra la API de Infinity Portal, parser, tarea, envío de reporte por correo) |
-| Check Point | `events_ips_7_days` | Implementado (script contra la API de Infinity Portal, parser, tarea, envío de reporte por correo) |
-| Check Point | `block-acceptance` | Implementado (script contra la API de Infinity Portal, parser, tarea, envío de reporte por correo) |
-| Wazuh | integración local del SIEM | Pendiente |
-
 El playbook diario `chd_sad.yml` ejecuta eventos de sistema de FortiGate y eventos IPS de Check Point. El playbook diario `compromised_passwords.yml` ejecuta fallos de autenticación de Check Point y fallos de inicio de sesión de administrador de FortiGate (ambos implementados). El playbook diario `infrastructure_failures.yml` ejecuta los cambios de configuración de FortiGate (implementado). El playbook semanal `change_detection.yml` ejecuta eventos de sistema de FortiGate y eventos IPS de Check Point de los últimos 7 días; `required_logs.yml` ejecuta eventos de seguridad/tráfico saliente de FortiGate y block-acceptance de Check Point de los últimos 7 días (ambos implementados). Todos los playbooks mensuales y trimestrales siguen siendo plantillas vacías.
 
 Los roles de FortiGate dependen de utilidades compartidas en `roles/fortigate/common/` (`fortigate_ssh.sh` para la ejecución remota por CLI y `send_mail_report.sh` para el envío de evidencia por correo) y de `roles/fortigate/vars/vault.yml` para la configuración de correo, el cual debe completarse y cifrarse con Ansible Vault antes de usarse en producción. Los roles de Check Point se autentican contra la API de Infinity Portal Events usando las credenciales definidas en `roles/checkpoint/vars/vault.yml` (client ID, access key, endpoints de la API y configuración de correo), las cuales también deben completarse y cifrarse antes de usarse en producción.
