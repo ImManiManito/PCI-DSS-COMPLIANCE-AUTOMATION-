@@ -56,9 +56,9 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | 10.4.2.1.a, 10.4.2.1.b | Pending |
 | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | 7.2.4.a, 7.2.4.b | Pending |
 | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending mapping | Pending |
-| Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Pending mapping | Pending |
+| Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | 8.3.9, 8.3.10.1 | Pending |
 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending mapping | Pending |
-| Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Pending mapping | Pending |
+| Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Pending |
 
 `scripts_cron/` is currently empty, pending the scheduled executions for the activities above.
 
@@ -140,6 +140,26 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 
 **Periodic Evaluations — 10.4.2.1.a / 10.4.2.1.b**
 > The frequency of periodic log reviews for system components identified as not being at risk for evasion (not defined in Requirement 10.4.1) is defined in the entity's targeted risk analysis, which is performed according to all elements specified in Requirement 12.3.1.
+
+**Password Changes — 8.3.9 / 8.3.10.1**
+> 8.3.9: If passwords/passphrases are used as the only authentication factor for user access (i.e., in any single-factor authentication implementation), then either:
+> - Passwords/passphrases are changed at least once every 90 days,
+>
+> OR
+> - The security posture of accounts is dynamically analyzed, and real-time access to resources is automatically determined accordingly.
+>
+> 8.3.10.1 (additional requirement for service providers only): If passwords/passphrases are used as the only authentication factor for customer user access (i.e., in any single-factor authentication implementation), then either:
+> - Passwords/passphrases are changed at least once every 90 days,
+>
+> OR
+> - The security posture of accounts is dynamically analyzed, and real-time access to resources is automatically determined accordingly.
+
+**Wireless Access Points — 11.2.1.a / 11.2.1.b / 11.2.1.c / 11.2.1.d**
+> Authorized and unauthorized wireless access points are managed as follows:
+> - The presence of wireless (Wi-Fi) access points is tested for.
+> - All authorized and unauthorized wireless access points are detected and identified.
+> - Testing, detection, and identification occurs at least once every three months.
+> - If automated monitoring is used, personnel are notified via generated alerts.
 
 Daily playbook `chd_sad.yml` runs FortiGate system events and Check Point IPS events. Daily playbook `compromised_passwords.yml` runs Check Point authentication failures and FortiGate admin login failed (both implemented). Daily playbook `infrastructure_failures.yml` runs FortiGate configuration changes (implemented). Weekly playbook `change_detection.yml` runs FortiGate system events and Check Point IPS events over the last 7 days; `required_logs.yml` runs FortiGate security/forward-traffic events and Check Point block-acceptance over the last 7 days (both implemented). All monthly and quarterly playbooks remain empty placeholders.
 

@@ -56,9 +56,9 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 | Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | 10.4.2.1.a, 10.4.2.1.b | Pendiente |
 | Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | 7.2.4.a, 7.2.4.b | Pendiente |
 | Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
-| Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
+| Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | 8.3.9, 8.3.10.1 | Pendiente |
 | Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
-| Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | Pendiente de mapeo | Pendiente |
+| Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Pendiente |
 
 `scripts_cron/` está vacío por ahora, a la espera de las ejecuciones programadas de las actividades anteriores.
 
@@ -140,6 +140,26 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 
 **Evaluaciones periódicas — 10.4.2.1.a / 10.4.2.1.b**
 > La frecuencia de las evaluaciones periódicas de los componentes del sistema identificados (no definidos en el Requisito 10.4.1) se define en el análisis de riesgo específico de la entidad, el cual se realiza de acuerdo con todos los elementos especificados en el Requisito 12.3.1.
+
+**Cambios de contraseña — 8.3.9 / 8.3.10.1**
+> 8.3.9: Si las contraseñas/frases de paso se utilizan como el único factor de autenticación para el acceso del usuario (es decir, en cualquier implementación de autenticación de factor único), entonces:
+> - Las contraseñas/frases de paso se cambian al menos una vez cada 90 días,
+>
+> O
+> - La postura de seguridad de las cuentas se analiza dinámicamente y el acceso a los recursos en tiempo real se determina automáticamente de acuerdo a dicha postura de seguridad.
+>
+> 8.3.10.1 (requisito adicional solo para proveedores de servicios): Si las contraseñas/frases de paso se utilizan como el único factor de autenticación para el acceso del usuario del cliente (es decir, en cualquier implementación de autenticación de factor único), entonces:
+> - Las contraseñas/frases de paso se cambian al menos una vez cada 90 días,
+>
+> O
+> - La postura de seguridad de las cuentas se analiza dinámicamente y el acceso a los recursos en tiempo real se determina automáticamente de acuerdo a dicha postura.
+
+**Puntos de acceso inalámbrico — 11.2.1.a / 11.2.1.b / 11.2.1.c / 11.2.1.d**
+> Los puntos de acceso inalámbricos autorizados y no autorizados se gestionan de la siguiente manera:
+> - Se comprueba la existencia de puntos de acceso inalámbricos (Wi-Fi).
+> - Se detectan e identifican todos los puntos de acceso inalámbricos autorizados y no autorizados.
+> - La verificación, detección e identificación ocurre al menos cada tres meses.
+> - Si se utiliza la supervisión automatizada, se notifica al personal mediante la generación de alertas.
 
 El playbook diario `chd_sad.yml` ejecuta eventos de sistema de FortiGate y eventos IPS de Check Point. El playbook diario `compromised_passwords.yml` ejecuta fallos de autenticación de Check Point y fallos de inicio de sesión de administrador de FortiGate (ambos implementados). El playbook diario `infrastructure_failures.yml` ejecuta los cambios de configuración de FortiGate (implementado). El playbook semanal `change_detection.yml` ejecuta eventos de sistema de FortiGate y eventos IPS de Check Point de los últimos 7 días; `required_logs.yml` ejecuta eventos de seguridad/tráfico saliente de FortiGate y block-acceptance de Check Point de los últimos 7 días (ambos implementados). Todos los playbooks mensuales y trimestrales siguen siendo plantillas vacías.
 
