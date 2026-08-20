@@ -50,7 +50,7 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 | Contraseñas comprometidas (`playbooks/daily/compromised_passwords.yml`) | Diaria | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implementado |
 | Fallas de infraestructura (`playbooks/daily/infrastructure_failures.yml`) | Diaria | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implementado |
 | Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Pendiente de mapeo | Implementado |
-| Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | Pendiente de mapeo | Implementado |
+| Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | 10.4.2.a, 10.4.2.b | Implementado |
 | Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | Pendiente de mapeo | Pendiente |
 | Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | Pendiente de mapeo | Pendiente |
 | Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | Pendiente de mapeo | Pendiente |
@@ -111,6 +111,10 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 > - Determinando si se requieren más acciones como resultado de la falla de seguridad.
 > - Implementando controles para evitar que se repita la causa de la falla.
 > - Reanudación del monitoreo de los controles de seguridad.
+
+**Registros requeridos — 10.4.2.a / 10.4.2.b**
+> 10.4.2.a: Examinar las políticas y procedimientos de seguridad para verificar que existan procesos definidos para revisar periódicamente los registros de todos los demás componentes del sistema.
+> 10.4.2.b: Examinar los resultados documentados de las revisiones de registros y entrevistar al personal para verificar que las revisiones de registros se realicen periódicamente.
 
 ### Detalle de implementación a nivel de plataforma
 

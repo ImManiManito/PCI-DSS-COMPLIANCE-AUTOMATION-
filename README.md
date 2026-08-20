@@ -50,7 +50,7 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 | Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implemented |
 | Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implemented |
 | Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Pending mapping | Implemented |
-| Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | Pending mapping | Implemented |
+| Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | 10.4.2.a, 10.4.2.b | Implemented |
 | Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Pending mapping | Pending |
 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Pending mapping | Pending |
 | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Pending mapping | Pending |
@@ -111,6 +111,10 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 > - Determining whether further actions are required as a result of the security failure.
 > - Implementing controls to prevent the cause of the failure from reoccurring.
 > - Resuming monitoring of security controls.
+
+**Required Logs — 10.4.2.a / 10.4.2.b**
+> 10.4.2.a: Examine security policies and procedures to verify that processes are defined for reviewing logs of all other system components periodically.
+> 10.4.2.b: Examine documented results of log reviews and interview personnel to verify that log reviews are performed periodically.
 
 ### Platform-level implementation detail
 
