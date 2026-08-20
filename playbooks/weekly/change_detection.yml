@@ -7,9 +7,3 @@
 
     - name: Execute FortiGate - System Events (últimos 7 días)
       include_tasks: ../../roles/fortigate/system_events_7_days/tasks/main.yml
-
-    - name: Execute FortiGate - Security Events and Forward Traffic (últimos 7 días)
-      include_tasks: ../../roles/fortigate/security_events_and_forward_traffic/tasks/main.yml
-
-    - name: Execute Checkpoint - Block-Acceptance (últimos 7 días)
-      include_tasks: "../../roles/checkpoint/block-acceptance/tasks/main.yml"
