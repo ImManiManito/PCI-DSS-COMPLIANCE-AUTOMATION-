@@ -10,3 +10,6 @@
 
     - name: Execute Checkpoint - Events IPS (últimos 7 días)
       include_tasks: ../../roles/checkpoint/events_ips_7_days/tasks/main.yml
+
+    - name: Execute Wazuh - CHD SAD Review (últimos 7 días)
+      include_tasks: ../../roles/wazuh/chd_sad_review_7_days/tasks/main.yml

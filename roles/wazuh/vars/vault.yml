@@ -1,0 +1,12 @@
+---
+# Credenciales y configuración para las actividades PCI DSS sobre Wazuh (SIEM).
+# IMPORTANTE: este archivo debe cifrarse con Ansible Vault antes de usarse en producción:
+# ansible-vault encrypt roles/wazuh/vars/vault.yml
+
+# Contraseña del usuario de Ansible para escalar a root (sudo) y poder leer
+# /var/ossec/logs/alerts/alerts.json dentro de la máquina virtual del SIEM.
+wazuh_become_password: "SUDO_PASSWORD_AQUI"
+
+# Correo utilizado para el envío de evidencia PCI DSS.
+wazuh_mail_from: "correo@dominio.com"
+wazuh_mail_to: "correo@dominio.com"

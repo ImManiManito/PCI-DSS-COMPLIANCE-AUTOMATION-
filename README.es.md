@@ -45,10 +45,10 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 
 | Requisitos PCI DSS | Actividad (playbook) | Periodicidad | Estado |
 |---|---|---|---|
-| 10.4.1.a, 10.4.1.b | CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | Implementado |
+| 10.4.1.a, 10.4.1.b, 10.6.1 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | Implementado |
 | 8.6.3.a, 8.6.3.b, 8.6.3.c | Contraseñas comprometidas (`playbooks/daily/compromised_passwords.yml`) | Diaria | Implementado |
 | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Fallas de infraestructura (`playbooks/daily/infrastructure_failures.yml`) | Diaria | Implementado |
-| 11.5.2.a, 11.5.2.b | Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Implementado |
+| 11.5.2.a, 11.5.2.b, 10.6.1 | Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Implementado |
 | 10.4.2.a, 10.4.2.b | Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | Implementado |
 | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | Pendiente |
 | 8.2.6 | Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | Pendiente |
@@ -69,6 +69,8 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 > - Registros de todos los componentes del sistema que almacenan, procesan o transmiten CHD y/o SAD.
 > - Registros de todos los componentes críticos del sistema.
 > - Registros de todos los servidores y componentes del sistema que realizan funciones de seguridad (por ejemplo, controles de seguridad de red, sistemas de detección de intrusiones/sistemas de prevención de intrusiones (IDS/IPS), servidores de autenticación).
+>
+> Adicionalmente, el rol de Wazuh `chd_sad_review` ahora recolecta las alertas relacionadas con CHD/SAD desde `alerts.json` (filtradas por el grupo de reglas/etiqueta de control `10.6.1`) para complementar la evidencia diaria de FortiGate y Check Point.
 
 **Contraseñas comprometidas — 8.6.3.a / 8.6.3.b / 8.6.3.c**
 > Las contraseñas/frases de paso para cualquier cuenta de aplicación y de sistema están protegidas contra el uso indebido de la siguiente manera:
@@ -119,6 +121,8 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 > Un mecanismo de detección de cambios (por ejemplo, herramientas de monitoreo de integridad de archivos) se despliega como sigue:
 > - Para alertar al personal sobre modificaciones no autorizadas (incluyendo cambios, adiciones y eliminaciones) de archivos críticos.
 > - Para realizar comparaciones de archivos críticos al menos una vez por semana.
+>
+> Adicionalmente, el rol de Wazuh `chd_sad_review_7_days` ahora recolecta las alertas relacionadas con CHD/SAD de los últimos 7 días (filtradas por el grupo de reglas/etiqueta de control `10.6.1`) para complementar la evidencia semanal de FortiGate y Check Point.
 
 **Cuentas privilegiadas — 7.2.4.a / 7.2.4.b**
 > Todas las cuentas de usuario y los privilegios de acceso relacionados, incluyendo las cuentas de terceros/proveedores, se revisan de la siguiente manera:

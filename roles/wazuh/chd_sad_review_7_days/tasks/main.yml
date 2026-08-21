@@ -1,0 +1,44 @@
+---
+- name: Wazuh CHD SAD Review 7 días - Cargar credenciales (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/wazuh/vars/vault.yml"
+
+- name: Wazuh CHD SAD Review 7 días - Definir rango de fechas (últimos 7 días)
+  ansible.builtin.set_fact:
+    wazuh_chd_sad_7d_end_date: "{{ now(fmt='%Y-%m-%d') }}"
+    wazuh_chd_sad_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
+    wazuh_chd_sad_7d_evidence_dir: "{{ wazuh_chd_sad_7d_evidence_dir | default('/opt/pci-dss-evidence/wazuh/chd_sad_review_7_days') }}"
+    wazuh_alerts_base_dir: "{{ wazuh_alerts_base_dir | default('/var/ossec/logs/alerts') }}"
+
+- name: Wazuh CHD SAD Review 7 días - Crear directorio de evidencias
+  ansible.builtin.file:
+    path: "{{ wazuh_chd_sad_7d_evidence_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Wazuh CHD SAD Review 7 días - Filtrar histórico de alertas (PCI DSS 10.6.1) y generar evidencia CSV
+  ansible.builtin.shell:
+    cmd: >
+      bash "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review_7_days/scripts/chd_sad_review_7_days.sh"
+      "{{ wazuh_alerts_base_dir }}"
+      "10.6.1"
+      "7"
+      | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
+      > "{{ wazuh_chd_sad_7d_evidence_dir }}/CHD_SAD_Review_7_dias_{{ wazuh_chd_sad_7d_start_date }}_a_{{ wazuh_chd_sad_7d_end_date }}.csv"
+  become: true
+  become_method: sudo
+  become_password: "{{ wazuh_become_password }}"
+  register: wazuh_chd_sad_review_7d_result
+  changed_when: false
+  no_log: true
+
+- name: Wazuh CHD SAD Review 7 días - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
+      - "{{ wazuh_mail_from }}"
+      - "{{ wazuh_mail_to }}"
+      - "Wazuh CHD SAD Review 7 días - Evidencia PCI DSS 10.6.1 ({{ wazuh_chd_sad_7d_start_date }} a {{ wazuh_chd_sad_7d_end_date }})"
+      - "{{ wazuh_chd_sad_7d_evidence_dir }}/CHD_SAD_Review_7_dias_{{ wazuh_chd_sad_7d_start_date }}_a_{{ wazuh_chd_sad_7d_end_date }}.csv"
+  changed_when: false

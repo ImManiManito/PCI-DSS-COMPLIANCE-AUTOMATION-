@@ -45,10 +45,10 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 
 | PCI DSS requirements | Activity (playbook) | Frequency | Status |
 |---|---|---|---|
-| 10.4.1.a, 10.4.1.b | CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | Implemented |
+| 10.4.1.a, 10.4.1.b, 10.6.1 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | Implemented |
 | 8.6.3.a, 8.6.3.b, 8.6.3.c | Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | Implemented |
 | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | Implemented |
-| 11.5.2.a, 11.5.2.b | Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Implemented |
+| 11.5.2.a, 11.5.2.b, 10.6.1 | Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Implemented |
 | 10.4.2.a, 10.4.2.b | Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | Implemented |
 | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Pending |
 | 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Pending |
@@ -69,6 +69,8 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 > - Logs of all system components that store, process, or transmit CHD and/or SAD.
 > - Logs of all critical system components.
 > - Logs of all servers and system components that perform security functions (for example, network security controls, intrusion-detection/intrusion-prevention systems (IDS/IPS), authentication servers).
+>
+> Additionally, the Wazuh `chd_sad_review` role now collects CHD/SAD-related alerts from `alerts.json` (filtered by rule group/control tag `10.6.1`) to complement the daily FortiGate and Check Point evidence.
 
 **Compromised Passwords — 8.6.3.a / 8.6.3.b / 8.6.3.c**
 > Passwords/passphrases for any application and system accounts are protected against misuse as follows:
@@ -119,6 +121,8 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 > A change-detection mechanism (for example, file integrity monitoring tools) is deployed as follows:
 > - To alert personnel to unauthorized modification (including changes, additions, and deletions) of critical files.
 > - To perform critical file comparisons at least once weekly.
+>
+> Additionally, the Wazuh `chd_sad_review_7_days` role now collects the last 7 days of CHD/SAD-related alerts (filtered by rule group/control tag `10.6.1`) to complement the weekly FortiGate and Check Point evidence.
 
 **Privileged Accounts — 7.2.4.a / 7.2.4.b**
 > All user accounts and related access privileges, including third-party/vendor accounts, are reviewed as follows:

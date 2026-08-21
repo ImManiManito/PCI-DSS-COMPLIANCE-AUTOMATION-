@@ -1,0 +1,46 @@
+---
+- name: Wazuh CHD SAD Review - Cargar credenciales (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../roles/wazuh/vars/vault.yml"
+
+- name: Wazuh CHD SAD Review - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
+  ansible.builtin.set_fact:
+    wazuh_chd_sad_report_date: "{{ now(fmt='%Y-%m-%d') }}"
+    wazuh_chd_sad_start_time: "{{ now(fmt='%Y-%m-%d') }}T00:00:00"
+    wazuh_chd_sad_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59"
+    wazuh_chd_sad_evidence_dir: "{{ wazuh_chd_sad_evidence_dir | default('/opt/pci-dss-evidence/wazuh/chd_sad_review') }}"
+    wazuh_alerts_file: "{{ wazuh_alerts_file | default('/var/ossec/logs/alerts/alerts.json') }}"
+
+- name: Wazuh CHD SAD Review - Crear directorio de evidencias
+  ansible.builtin.file:
+    path: "{{ wazuh_chd_sad_evidence_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Wazuh CHD SAD Review - Filtrar alerts.json (PCI DSS 10.6.1) y generar evidencia CSV
+  ansible.builtin.shell:
+    cmd: >
+      bash "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/chd_sad_review.sh"
+      "{{ wazuh_alerts_file }}"
+      "10.6.1"
+      "{{ wazuh_chd_sad_start_time }}"
+      "{{ wazuh_chd_sad_end_time }}"
+      | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
+      > "{{ wazuh_chd_sad_evidence_dir }}/CHD_SAD_Review_{{ wazuh_chd_sad_report_date }}.csv"
+  become: true
+  become_method: sudo
+  become_password: "{{ wazuh_become_password }}"
+  register: wazuh_chd_sad_review_result
+  changed_when: false
+  no_log: true
+
+- name: Wazuh CHD SAD Review - Enviar evidencia por correo
+  ansible.builtin.command:
+    cmd:
+      - bash
+      - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
+      - "{{ wazuh_mail_from }}"
+      - "{{ wazuh_mail_to }}"
+      - "Wazuh CHD SAD Review - Evidencia PCI DSS 10.6.1 ({{ wazuh_chd_sad_report_date }})"
+      - "{{ wazuh_chd_sad_evidence_dir }}/CHD_SAD_Review_{{ wazuh_chd_sad_report_date }}.csv"
+  changed_when: false

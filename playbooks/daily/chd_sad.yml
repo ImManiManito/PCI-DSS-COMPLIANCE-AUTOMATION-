@@ -10,3 +10,6 @@
 
     - name: Execute Checkpoint - Events IPS
       include_tasks: ../../roles/checkpoint/events_ips/tasks/main.yml
+
+    - name: Execute Wazuh - CHD SAD Review
+      include_tasks: ../../roles/wazuh/chd_sad_review/tasks/main.yml
