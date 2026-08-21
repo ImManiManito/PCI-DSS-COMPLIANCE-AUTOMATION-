@@ -43,21 +43,21 @@ The main goal of this initiative is to reduce manual processes, improve the cons
 
 The table below maps each activity (playbook) to the PCI DSS requirements it satisfies and the frequency at which it runs.
 
-| Activity (playbook) | Frequency | PCI DSS requirements | Status |
+| PCI DSS requirements | Activity (playbook) | Frequency | Status |
 |---|---|---|---|
-| CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | 10.4.1.a, 10.4.1.b | Implemented |
-| Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implemented |
-| Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implemented |
-| Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | 11.5.2.a, 11.5.2.b | Implemented |
-| Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | 10.4.2.a, 10.4.2.b | Implemented |
-| Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Pending |
-| Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | 8.2.6 | Pending |
-| Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | 10.4.2.1.a, 10.4.2.1.b | Pending |
-| Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | 7.2.4.a, 7.2.4.b | Pending |
-| Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | 10.5.1.a, 10.5.1.b, 10.5.1.c | Pending |
-| Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | 8.3.9, 8.3.10.1 | Pending |
-| Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | 12.3.3 | Pending |
-| Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Pending |
+| 10.4.1.a, 10.4.1.b | CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | Implemented |
+| 8.6.3.a, 8.6.3.b, 8.6.3.c | Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | Implemented |
+| 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | Implemented |
+| 11.5.2.a, 11.5.2.b | Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Implemented |
+| 10.4.2.a, 10.4.2.b | Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | Implemented |
+| 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Pending |
+| 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Pending |
+| 10.4.2.1.a, 10.4.2.1.b | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Pending |
+| 7.2.4.a, 7.2.4.b | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Pending |
+| 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending |
+| 8.3.9, 8.3.10.1 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Pending |
+| 12.3.3 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending |
+| 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Pending |
 
 `scripts_cron/` is currently empty, pending the scheduled executions for the activities above.
 

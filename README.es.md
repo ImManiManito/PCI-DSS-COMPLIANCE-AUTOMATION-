@@ -43,21 +43,21 @@ El objetivo principal de esta iniciativa es reducir los procesos manuales, mejor
 
 La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS que cumple y la periodicidad con la que se ejecuta.
 
-| Actividad (playbook) | Periodicidad | Requisitos PCI DSS | Estado |
+| Requisitos PCI DSS | Actividad (playbook) | Periodicidad | Estado |
 |---|---|---|---|
-| CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | 10.4.1.a, 10.4.1.b | Implementado |
-| Contraseñas comprometidas (`playbooks/daily/compromised_passwords.yml`) | Diaria | 8.6.3.a, 8.6.3.b, 8.6.3.c | Implementado |
-| Fallas de infraestructura (`playbooks/daily/infrastructure_failures.yml`) | Diaria | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Implementado |
-| Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | 11.5.2.a, 11.5.2.b | Implementado |
-| Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | 10.4.2.a, 10.4.2.b | Implementado |
-| Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Pendiente |
-| Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | 8.2.6 | Pendiente |
-| Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | 10.4.2.1.a, 10.4.2.1.b | Pendiente |
-| Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | 7.2.4.a, 7.2.4.b | Pendiente |
-| Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | 10.5.1.a, 10.5.1.b, 10.5.1.c | Pendiente |
-| Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | 8.3.9, 8.3.10.1 | Pendiente |
-| Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | 12.3.3 | Pendiente |
-| Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Pendiente |
+| 10.4.1.a, 10.4.1.b | CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | Implementado |
+| 8.6.3.a, 8.6.3.b, 8.6.3.c | Contraseñas comprometidas (`playbooks/daily/compromised_passwords.yml`) | Diaria | Implementado |
+| 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Fallas de infraestructura (`playbooks/daily/infrastructure_failures.yml`) | Diaria | Implementado |
+| 11.5.2.a, 11.5.2.b | Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Implementado |
+| 10.4.2.a, 10.4.2.b | Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | Implementado |
+| 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | Pendiente |
+| 8.2.6 | Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | Pendiente |
+| 10.4.2.1.a, 10.4.2.1.b | Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | Pendiente |
+| 7.2.4.a, 7.2.4.b | Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | Pendiente |
+| 10.5.1.a, 10.5.1.b, 10.5.1.c | Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | Pendiente |
+| 8.3.9, 8.3.10.1 | Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | Pendiente |
+| 12.3.3 | Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Pendiente |
+| 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | Pendiente |
 
 `scripts_cron/` está vacío por ahora, a la espera de las ejecuciones programadas de las actividades anteriores.
 
