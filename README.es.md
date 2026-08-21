@@ -13,16 +13,15 @@ Diario -- Semanal -- Mensual -- Trimestral
 La arquitectura del proyecto está diseñada para mantener cada actividad organizada e independiente, separando los playbooks de ejecución, las tareas de Ansible y los scripts utilizados para recolectar y procesar la información de seguridad.
 
 playbooks/
-    Actividades organizadas por frecuencia de ejecución.
+    Actividades organizadas por frecuencia de ejecución (diaria, semanal, mensual, trimestral).
 
 roles/
-    Automatización específica por plataforma.
-
-files/
-    Scripts, parsers y archivos auxiliares para cada actividad.
-
-common/
-    Componentes compartidos entre varias actividades.
+    Automatización específica por plataforma (fortigate/, checkpoint/, wazuh/). Cada rol de actividad normalmente contiene:
+    - scripts/ -- scripts de recolección y parseo.
+    - tasks/ -- definiciones de tareas de Ansible.
+    - templates/ -- plantillas Jinja2 para los reportes.
+    - common/ -- utilidades compartidas entre las actividades de la plataforma (por ejemplo, ejecución por SSH y envío de correo).
+    - vars/ -- variables cifradas con Ansible Vault (credenciales, endpoints de API, configuración de correo).
 
 inventory/
     Inventario de infraestructura.
