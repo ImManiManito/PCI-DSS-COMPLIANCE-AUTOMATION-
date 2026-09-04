@@ -61,10 +61,10 @@ export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/segura/.vault_pass
 
 ## Logs
 
-Cada ejecución genera un archivo de log con marca de tiempo bajo `logs/` en la
-raíz del proyecto, por ejemplo:
+Los scripts no generan archivos de log automáticamente; la salida se muestra por
+`stdout`/`stderr`. Si deseas conservarla en un archivo, redirige manualmente al
+invocar el script o en la configuración de cron, por ejemplo:
 
-```text
-logs/daily_20260904_060000.log
-logs/weekly_20260907_063000.log
+```bash
+./scripts_cron/run_daily.sh >> /ruta/a/logs/daily_$(date +%Y%m%d_%H%M%S).log 2>&1
 ```

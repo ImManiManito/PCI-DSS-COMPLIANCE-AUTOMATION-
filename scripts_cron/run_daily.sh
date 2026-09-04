@@ -14,16 +14,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PLAYBOOK_DIR="${PROJECT_ROOT}/playbooks/daily"
-LOG_DIR="${PROJECT_ROOT}/logs"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="${LOG_DIR}/daily_${TIMESTAMP}.log"
-
-mkdir -p "${LOG_DIR}"
 
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
     echo "${msg}"
-    echo "${msg}" >> "${LOG_FILE}"
 }
 
 ANSIBLE_ARGS=()
@@ -52,7 +46,7 @@ overall_exit=0
 for playbook in "${playbooks[@]}"; do
     playbook_name=$(basename "${playbook}")
     log "Ejecutando playbook: ${playbook_name}"
-    ansible-playbook "${ANSIBLE_ARGS[@]}" "${playbook}" >> "${LOG_FILE}" 2>&1
+    ansible-playbook "${ANSIBLE_ARGS[@]}" "${playbook}"
     rc=$?
     if [[ ${rc} -eq 0 ]]; then
         log "OK: ${playbook_name}"

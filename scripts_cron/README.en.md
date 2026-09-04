@@ -61,10 +61,10 @@ export ANSIBLE_VAULT_PASSWORD_FILE=/secure/path/.vault_pass
 
 ## Logs
 
-Each run generates a timestamped log file under `logs/` in the project root, for
-example:
+The scripts do not generate log files automatically; output is sent to
+`stdout`/`stderr`. If you want to keep it in a file, redirect manually when
+calling the script or in the cron configuration, for example:
 
-```text
-logs/daily_20260904_060000.log
-logs/weekly_20260907_063000.log
+```bash
+./scripts_cron/run_daily.sh >> /path/to/logs/daily_$(date +%Y%m%d_%H%M%S).log 2>&1
 ```
