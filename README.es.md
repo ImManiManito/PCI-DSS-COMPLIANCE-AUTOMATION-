@@ -59,7 +59,7 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 | 12.3.3 | Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Pendiente |
 | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | Pendiente |
 
-`scripts_cron/` está vacío por ahora, a la espera de las ejecuciones programadas de las actividades anteriores.
+`scripts_cron/` contiene los scripts de ejecución programada de las actividades anteriores. Consulta [scripts_cron/README.md](scripts_cron/README.md) para instrucciones de uso y ejemplos de cron.
 
 ### Detalle de los requisitos
 

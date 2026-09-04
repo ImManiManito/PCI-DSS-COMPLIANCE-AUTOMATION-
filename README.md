@@ -59,7 +59,7 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 | 12.3.3 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending |
 | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Pending |
 
-`scripts_cron/` is currently empty, pending the scheduled executions for the activities above.
+`scripts_cron/` contains the scheduled execution scripts for the activities above. See [scripts_cron/README.md](scripts_cron/README.md) for usage and cron examples.
 
 ### Requirement detail
 
