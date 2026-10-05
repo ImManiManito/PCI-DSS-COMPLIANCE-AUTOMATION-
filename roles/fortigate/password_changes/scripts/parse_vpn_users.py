@@ -19,15 +19,16 @@ import re
 import sys
 
 PROMPT_RE = re.compile(
-    r'#\s*show\s+(user local|user group|vpn ssl settings|vpn ipsec phase1-interface|firewall policy)\s*$'
+    r'[#$]\s*show\s+(user local|user group|vpn ssl settings|vpn ipsec phase1-interface|firewall policy)\s*$'
 )
+ANSI_RE = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Za-z0-9]|[\x00-\x08\x0b\x0c\x0e-\x1f]')
 TOKEN_RE = re.compile(r'"([^"]*)"|(\S+)')
 
 
 def split_sections(text):
     sections = {}
     current = None
-    for raw in text.replace("\r", "").split("\n"):
+    for raw in ANSI_RE.sub("", text.replace("\r", "")).split("\n"):
         line = raw.rstrip()
         m = PROMPT_RE.search(line)
         if m:

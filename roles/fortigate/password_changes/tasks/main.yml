@@ -26,7 +26,7 @@
 
 - name: FortiGate Password Changes - Generar reporte
   ansible.builtin.template:
-    src: password_changes_report.html.j2
+    src: "{{ playbook_dir }}/../../roles/fortigate/password_changes/templates/password_changes_report.html.j2"
     dest: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
     mode: "0640"
   delegate_to: localhost
