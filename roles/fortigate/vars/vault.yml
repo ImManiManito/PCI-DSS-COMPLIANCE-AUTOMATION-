@@ -4,3 +4,8 @@
 # ansible-vault encrypt roles/fortigate/vars/vault.yml
 fortigate_mail_from: "correo@dominio.com"
 fortigate_mail_to: "correo@dominio.com"
+
+# Correo de cada usuario VPN (usuario FortiGate: correo). Quien no esté aquí NO se cambia.
+# Tras editar, cifrar el archivo con ansible-vault.
+fortigate_vpn_user_emails:
+  usuario.ejemplo: "usuario.ejemplo@dominio.com"

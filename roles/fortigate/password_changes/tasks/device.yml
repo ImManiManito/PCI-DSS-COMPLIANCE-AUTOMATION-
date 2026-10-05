@@ -1,0 +1,36 @@
+---
+- name: FortiGate Password Changes - Listar usuarios VPN locales ({{ fortigate_pwd_device }})
+  ansible.builtin.command:
+    argv:
+      - bash
+      - "{{ playbook_dir }}/../../roles/fortigate/password_changes/scripts/fortigate_list_vpn_users.sh"
+      - "{{ hostvars[fortigate_pwd_device].ansible_host }}"
+      - "{{ hostvars[fortigate_pwd_device].ansible_port }}"
+      - "{{ hostvars[fortigate_pwd_device].ansible_user }}"
+      - "{{ hostvars[fortigate_pwd_device].ansible_ssh_private_key_file }}"
+  environment:
+    VPN_GROUPS_OVERRIDE: "{{ fortigate_vpn_groups | default([]) | join(',') }}"
+  register: fortigate_pwd_list
+  changed_when: false
+  delegate_to: localhost
+
+- name: FortiGate Password Changes - Interpretar usuarios
+  ansible.builtin.set_fact:
+    fortigate_pwd_users: "{{ (fortigate_pwd_list.stdout | from_json).users }}"
+    fortigate_pwd_vpn_groups: "{{ (fortigate_pwd_list.stdout | from_json).vpn_groups }}"
+
+- name: FortiGate Password Changes - Mostrar grupos VPN y usuarios detectados
+  ansible.builtin.debug:
+    msg: "Grupos VPN: {{ fortigate_pwd_vpn_groups }} | Usuarios: {{ fortigate_pwd_users | map(attribute='name') | list }}"
+
+- name: FortiGate Password Changes - Validar que existan usuarios
+  ansible.builtin.assert:
+    that: fortigate_pwd_users | length > 0
+    fail_msg: "No se encontraron usuarios locales con acceso VPN en {{ fortigate_pwd_device }} (grupos VPN detectados: {{ fortigate_pwd_vpn_groups }}). Defina fortigate_vpn_groups manualmente si es necesario."
+
+- name: FortiGate Password Changes - Procesar cada usuario
+  ansible.builtin.include_tasks: user.yml
+  loop: "{{ fortigate_pwd_users }}"
+  loop_control:
+    loop_var: fortigate_pwd_user
+    label: "{{ fortigate_pwd_user.name }}"
