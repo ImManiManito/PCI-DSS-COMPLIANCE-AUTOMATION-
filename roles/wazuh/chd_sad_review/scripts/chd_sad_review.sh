@@ -30,8 +30,8 @@ command -v jq >/dev/null 2>&1 || { echo "ERROR: se requiere 'jq'." >&2; exit 1; 
 jq -c \
     --arg req "$PCI_DSS_REQUIREMENT" \
     --arg start "$START_TIME" \
-    --arg end "$END_TIME" \
+    --arg t_end "$END_TIME" \
     'select(
         ((.rule.pci_dss? // []) | index($req)) != null
-        and (.timestamp >= $start and .timestamp <= $end)
+        and (.timestamp >= $start and .timestamp <= $t_end)
     )' "$ALERTS_FILE"

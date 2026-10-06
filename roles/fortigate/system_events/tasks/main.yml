@@ -30,7 +30,7 @@
 
 - name: FortiGate System Events - Ejecutar recolección de logs vía CLI (svc_ansible)
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/system_events/scripts/fortigate_system_events.sh"
       - "{{ hostvars[item.0].ansible_host }}"
@@ -49,7 +49,7 @@
 
 - name: FortiGate System Events - Generar evidencia en archivos .txt
   ansible.builtin.template:
-    src: system_events_report.txt.j2
+    src: "{{ playbook_dir }}/../../roles/fortigate/system_events/templates/system_events_report.txt.j2"
     dest: "{{ fortigate_system_events_evidence_dir }}/{{ item.1.filename }}"
     mode: "0640"
   loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
@@ -65,7 +65,7 @@
 
 - name: FortiGate System Events - Enviar evidencia por correo
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
       - "{{ fortigate_mail_from }}"

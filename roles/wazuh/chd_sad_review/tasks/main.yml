@@ -29,14 +29,15 @@
       > "{{ wazuh_chd_sad_evidence_dir }}/CHD_SAD_Review_{{ wazuh_chd_sad_report_date }}.csv"
   become: true
   become_method: sudo
-  become_password: "{{ wazuh_become_password }}"
+  vars:
+    ansible_become_password: "{{ wazuh_become_password }}"
   register: wazuh_chd_sad_review_result
   changed_when: false
   no_log: true
 
 - name: Wazuh CHD SAD Review - Enviar evidencia por correo
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
       - "{{ wazuh_mail_from }}"

@@ -38,7 +38,7 @@
 
 - name: Checkpoint Events IPS 7 días - Enviar evidencia por correo
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
       - "{{ checkpoint_mail_from }}"

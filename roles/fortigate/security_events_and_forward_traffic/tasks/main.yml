@@ -18,7 +18,7 @@
 
 - name: FortiGate Forward Traffic 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/security_events_and_forward_traffic/scripts/fortigate_forward_traffic_7_days.sh"
       - "{{ hostvars[item].ansible_host }}"
@@ -36,7 +36,7 @@
 
 - name: FortiGate Forward Traffic 7 días - Generar evidencia en archivos .txt
   ansible.builtin.template:
-    src: forward_traffic_report.txt.j2
+    src: "{{ playbook_dir }}/../../roles/fortigate/security_events_and_forward_traffic/templates/forward_traffic_report.txt.j2"
     dest: "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_seguridad_y_trafico_forward_{{ item }}.txt"
     mode: "0640"
   loop: "{{ groups['fortigates'] }}"
@@ -50,7 +50,7 @@
 
 - name: FortiGate Webfilter 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/security_events_and_forward_traffic/scripts/fortigate_webfilter_7_days.sh"
       - "{{ hostvars[item].ansible_host }}"
@@ -68,7 +68,7 @@
 
 - name: FortiGate Webfilter 7 días - Generar evidencia en archivos .txt
   ansible.builtin.template:
-    src: webfilter_report.txt.j2
+    src: "{{ playbook_dir }}/../../roles/fortigate/security_events_and_forward_traffic/templates/webfilter_report.txt.j2"
     dest: "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_webfilter_{{ item }}.txt"
     mode: "0640"
   loop: "{{ groups['fortigates'] }}"
@@ -82,7 +82,7 @@
 
 - name: FortiGate Security Events and Forward Traffic 7 días - Enviar evidencia por correo
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
       - "{{ fortigate_mail_from }}"

@@ -25,13 +25,14 @@ START_TIME="${START_DATE}T00:00:00"
 END_TIME="${END_DATE}T23:59:59"
 
 filter_alerts() {
-    jq -c \
+    # Prefiltro textual barato: descarta líneas sin el requisito antes de invocar jq.
+    { grep -F "\"$PCI_DSS_REQUIREMENT\"" || true; } | jq -c \
         --arg req "$PCI_DSS_REQUIREMENT" \
         --arg start "$START_TIME" \
-        --arg end "$END_TIME" \
+        --arg t_end "$END_TIME" \
         'select(
             ((.rule.pci_dss? // []) | index($req)) != null
-            and (.timestamp >= $start and .timestamp <= $end)
+            and (.timestamp >= $start and .timestamp <= $t_end)
         )'
 }
 
@@ -47,6 +48,7 @@ while [[ "$CURRENT_EPOCH" -le "$END_EPOCH" ]]; do
     DAY_FILE_GZ="${BASE_DIR}/${YEAR}/${MONTH_ABBR}/ossec-alerts-${DAY}.json.gz"
     DAY_FILE_PLAIN="${BASE_DIR}/${YEAR}/${MONTH_ABBR}/ossec-alerts-${DAY}.json"
 
+    echo "Procesando $CURRENT_DATE..." >&2
     if [[ -r "$DAY_FILE_GZ" ]]; then
         zcat "$DAY_FILE_GZ" | filter_alerts
     elif [[ -r "$DAY_FILE_PLAIN" ]]; then

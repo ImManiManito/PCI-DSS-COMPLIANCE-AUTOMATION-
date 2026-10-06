@@ -51,13 +51,13 @@ PAGE_TOKEN=""
 while true; do
     REQUEST_BODY="$(jq -n \
         --arg start "$START_TIME" \
-        --arg end "$END_TIME" \
+        --arg t_end "$END_TIME" \
         --arg pageToken "$PAGE_TOKEN" \
         '{
             filter: {
                 blades: ["VPN"],
                 action: "Block",
-                timeframe: { start: $start, end: $end }
+                timeframe: { start: $start, end: $t_end }
             },
             pageSize: 200
         } + (if $pageToken != "" then {pageToken: $pageToken} else {} end)')"

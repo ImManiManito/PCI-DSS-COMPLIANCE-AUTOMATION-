@@ -17,7 +17,7 @@
 
 - name: FortiGate Configuration Changes - Ejecutar recolección de logs vía CLI (svc_ansible)
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/configuration_changes/scripts/fortigate_configuration_changes.sh"
       - "{{ hostvars[item].ansible_host }}"
@@ -35,7 +35,7 @@
 
 - name: FortiGate Configuration Changes - Generar evidencia en archivo .txt
   ansible.builtin.template:
-    src: configuration_changes_report.txt.j2
+    src: "{{ playbook_dir }}/../../roles/fortigate/configuration_changes/templates/configuration_changes_report.txt.j2"
     dest: "{{ fortigate_configuration_changes_evidence_dir }}/Cambios_de_configuracion_{{ item }}.txt"
   loop: "{{ groups['fortigates'] }}"
   loop_control:
@@ -48,7 +48,7 @@
 
 - name: FortiGate Configuration Changes - Enviar evidencia por correo
   ansible.builtin.command:
-    cmd:
+    argv:
       - bash
       - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
       - "{{ fortigate_mail_from }}"
