@@ -1,0 +1,44 @@
+---
+- name: Validación previa - Variables del vault definidas
+  ansible.builtin.assert:
+    that:
+      - fortigate_mail_from is defined
+      - fortigate_mail_to is defined
+      - fortigate_mail_to != 'correo@dominio.com'
+      - fortigate_vpn_user_emails is defined
+      - fortigate_vpn_user_emails | length > 0
+    fail_msg: "Vault incompleto: defina fortigate_mail_from, fortigate_mail_to (no el valor de ejemplo) y fortigate_vpn_user_emails."
+    success_msg: "Variables del vault OK"
+
+- name: Validación previa - Formato de los correos de usuarios
+  ansible.builtin.assert:
+    that: fortigate_vpn_user_emails.values() | reject('match', '^[^@\s]+@[^@\s]+\.[^@\s]+$') | list | length == 0
+    fail_msg: "Hay correos con formato inválido en fortigate_vpn_user_emails."
+    success_msg: "Formato de correos OK"
+
+- name: Validación previa - Remitente no es el valor de ejemplo
+  ansible.builtin.debug:
+    msg: "ADVERTENCIA: fortigate_mail_from sigue siendo el valor de ejemplo; use una cuenta real autorizada en el relay."
+  when: fortigate_mail_from == 'correo@dominio.com'
+
+- name: Validación previa - Llave SSH existe
+  ansible.builtin.stat:
+    path: "{{ hostvars[item].ansible_ssh_private_key_file }}"
+  loop: "{{ groups['fortigates'] }}"
+  register: fortigate_pwd_key_stat
+  delegate_to: localhost
+
+- name: Validación previa - Llave SSH
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "No existe la llave SSH {{ item.item }}"
+  loop: "{{ fortigate_pwd_key_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Validación previa - sendmail (postfix) disponible
+  ansible.builtin.shell: "test -x /usr/sbin/sendmail || command -v sendmail"
+  args:
+    executable: /bin/bash
+  changed_when: false
+  delegate_to: localhost

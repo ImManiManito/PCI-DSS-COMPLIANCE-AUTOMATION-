@@ -3,12 +3,16 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../roles/fortigate/vars/vault.yml"
 
+- name: FortiGate Password Changes - Validaciones previas
+  ansible.builtin.include_tasks: preflight.yml
+
 - name: FortiGate Password Changes - Definir variables de ejecución
   ansible.builtin.set_fact:
     fortigate_pwd_report_date: "{{ now(fmt='%Y-%m-%d') }}"
     fortigate_pwd_evidence_dir: "{{ fortigate_pwd_evidence_dir | default('/opt/pci-dss-evidence/fortigate/password_changes') }}"
     fortigate_pwd_exclude_users: "{{ fortigate_pwd_exclude_users | default([]) }}"
     fortigate_pwd_length: "{{ fortigate_pwd_length | default(16) }}"
+    fortigate_pwd_operator: "{{ fortigate_pwd_operator | default(lookup('ansible.builtin.env', 'USER') | default('ansible', true)) }}"
     fortigate_pwd_results: []
 
 - name: FortiGate Password Changes - Crear directorio de evidencias
@@ -24,12 +28,45 @@
   loop_control:
     loop_var: fortigate_pwd_device
 
+- name: FortiGate Password Changes - Esperar entrega de correos
+  ansible.builtin.wait_for:
+    timeout: 8
+  delegate_to: localhost
+
+- name: FortiGate Password Changes - Revisar cola de postfix
+  ansible.builtin.command: mailq
+  register: fortigate_pwd_mailq_cmd
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: FortiGate Password Changes - Cargar logo
+  ansible.builtin.slurp:
+    src: "{{ playbook_dir }}/../../roles/fortigate/password_changes/templates/logo-sayabha.png"
+  register: fortigate_pwd_logo
+  delegate_to: localhost
+
 - name: FortiGate Password Changes - Generar reporte
   ansible.builtin.template:
     src: "{{ playbook_dir }}/../../roles/fortigate/password_changes/templates/password_changes_report.html.j2"
     dest: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
     mode: "0640"
+  vars:
+    fortigate_pwd_mailq: "{{ fortigate_pwd_mailq_cmd.stdout | default('') }}"
+    fortigate_pwd_logo_b64: "{{ fortigate_pwd_logo.content }}"
+    fortigate_pwd_datetime: "{{ now(fmt='%d/%m/%Y %H:%M:%S') }}"
   delegate_to: localhost
+
+- name: FortiGate Password Changes - Validar que el reporte existe
+  ansible.builtin.stat:
+    path: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
+  register: fortigate_pwd_report_stat
+  delegate_to: localhost
+
+- name: FortiGate Password Changes - Asegurar reporte generado
+  ansible.builtin.assert:
+    that: fortigate_pwd_report_stat.stat.exists and fortigate_pwd_report_stat.stat.size > 0
+    fail_msg: "No se generó el reporte HTML"
 
 - name: FortiGate Password Changes - Enviar reporte por correo
   ansible.builtin.command:
@@ -42,3 +79,18 @@
       - "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
   changed_when: false
   delegate_to: localhost
+
+- name: FortiGate Password Changes - Resumen final
+  ansible.builtin.debug:
+    msg: >-
+      Evaluados: {{ fortigate_pwd_results | length }} |
+      Cambiados: {{ fortigate_pwd_results | selectattr('changed', 'equalto', 'OK') | list | length }} |
+      Correos: {{ fortigate_pwd_results | selectattr('mail', 'equalto', 'OK') | list | length }} |
+      Fallidos: {{ fortigate_pwd_results | selectattr('changed', 'equalto', 'FAILED') | list | length }}
+
+- name: FortiGate Password Changes - Fallar si hubo errores
+  ansible.builtin.assert:
+    that:
+      - fortigate_pwd_results | selectattr('changed', 'equalto', 'FAILED') | list | length == 0
+      - fortigate_pwd_results | selectattr('mail', 'equalto', 'FAILED') | list | length == 0
+    fail_msg: "Hubo usuarios con cambio o correo fallido; revise el reporte HTML."

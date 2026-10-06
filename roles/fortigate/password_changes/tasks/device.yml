@@ -1,5 +1,5 @@
 ---
-- name: FortiGate Password Changes - Listar usuarios VPN locales ({{ fortigate_pwd_device }})
+- name: "[1/4] Listar usuarios VPN ({{ fortigate_pwd_device }})"
   ansible.builtin.command:
     argv:
       - bash
@@ -14,21 +14,30 @@
   changed_when: false
   delegate_to: localhost
 
-- name: FortiGate Password Changes - Interpretar usuarios
+- name: "[1/4] Interpretar usuarios detectados"
   ansible.builtin.set_fact:
     fortigate_pwd_users: "{{ (fortigate_pwd_list.stdout | from_json).users }}"
     fortigate_pwd_vpn_groups: "{{ (fortigate_pwd_list.stdout | from_json).vpn_groups }}"
 
-- name: FortiGate Password Changes - Mostrar grupos VPN y usuarios detectados
+- name: "[1/4] Mostrar grupos VPN y usuarios detectados"
   ansible.builtin.debug:
     msg: "Grupos VPN: {{ fortigate_pwd_vpn_groups }} | Usuarios: {{ fortigate_pwd_users | map(attribute='name') | list }}"
 
-- name: FortiGate Password Changes - Validar que existan usuarios
+- name: "[1/4] Validar que existan usuarios con acceso VPN"
   ansible.builtin.assert:
     that: fortigate_pwd_users | length > 0
     fail_msg: "No se encontraron usuarios locales con acceso VPN en {{ fortigate_pwd_device }} (grupos VPN detectados: {{ fortigate_pwd_vpn_groups }}). Defina fortigate_vpn_groups manualmente si es necesario."
 
-- name: FortiGate Password Changes - Procesar cada usuario
+- name: "[1/4] Registrar usuarios del vault que no existen en el FortiGate"
+  ansible.builtin.set_fact:
+    fortigate_pwd_results: >-
+      {{ fortigate_pwd_results + [{
+        'device': fortigate_pwd_device, 'name': item,
+        'email': fortigate_vpn_user_emails[item], 'changed': 'SKIPPED',
+        'mail': 'SKIPPED', 'note': 'Usuario del vault no encontrado entre los usuarios VPN del FortiGate' }] }}
+  loop: "{{ fortigate_vpn_user_emails.keys() | list | difference(fortigate_pwd_users | map(attribute='name') | list) }}"
+
+- name: Procesar cada usuario
   ansible.builtin.include_tasks: user.yml
   loop: "{{ fortigate_pwd_users }}"
   loop_control:

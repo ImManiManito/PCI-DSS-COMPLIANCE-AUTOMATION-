@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Cambia la contraseña de un usuario local de FortiGate.
+# Cambia la contraseña de un usuario local de FortiGate y VERIFICA el cambio comparando el hash
+# almacenado (set passwd ENC ...) antes y después. No depende de los mensajes de la CLI.
 # La contraseña se recibe por la variable de entorno FORTI_NEW_PASSWD (nunca por argumentos).
-# Imprime únicamente RESULT=OK o RESULT=FAIL para no exponer la contraseña en la salida.
+# Salida: RESULT=OK | RESULT=FAIL  y  DETAIL=<motivo sin contraseña>
 
 set -uo pipefail
 
@@ -14,7 +15,33 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SSH_WRAPPER="${SCRIPT_DIR}/../../common/fortigate_ssh.sh"
-TARGET="$5"
+HOST="$1"; PORT="$2"; SSH_USER="$3"; KEY="$4"; TARGET="$5"
+
+clean() {
+    tr -d '\r' | sed -E 's/\x1b\[[0-9;?]*[A-Za-z]//g' | grep -v '^[[:space:]]*$'
+}
+
+get_hash() {
+    local out
+    out="$(
+        {
+            echo "config user local"
+            echo "edit \"${TARGET}\""
+            echo "show"
+            echo "end"
+        } | bash "$SSH_WRAPPER" "$HOST" "$PORT" "$SSH_USER" "$KEY" 2>&1
+    )" || true
+    printf '%s\n' "$out" | clean \
+        | sed -nE 's/^[[:space:]]*set passwd ENC[[:space:]]+([^[:space:]]+).*/\1/p' | tail -n1
+}
+
+fail() {
+    echo "RESULT=FAIL"
+    echo "DETAIL=$1"
+    exit 0
+}
+
+BEFORE="$(get_hash)"
 
 OUTPUT="$(
     {
@@ -23,12 +50,19 @@ OUTPUT="$(
         echo "set passwd \"${FORTI_NEW_PASSWD}\""
         echo "next"
         echo "end"
-    } | bash "$SSH_WRAPPER" "$1" "$2" "$3" "$4" 2>&1
+    } | bash "$SSH_WRAPPER" "$HOST" "$PORT" "$SSH_USER" "$KEY" 2>&1
 )"
 RC=$?
+CLEAN="$(printf '%s\n' "$OUTPUT" | clean | sed -E 's/ENC [^ ]+/ENC ***/')"
+CLEAN="${CLEAN//"$FORTI_NEW_PASSWD"/***}"
 
-if [[ $RC -ne 0 ]] || grep -qiE 'command parse error|command fail|unknown action|entry not found|object check operator error|not match|Return code -' <<< "$OUTPUT"; then
-    echo "RESULT=FAIL"
-    exit 0
+AFTER="$(get_hash)"
+
+if [[ -z "$AFTER" ]]; then
+    fail "No se pudo leer el hash de la contraseña tras el cambio (rc=${RC}); $(tail -n 4 <<< "$CLEAN" | tr '\n' '|' | cut -c1-300)"
 fi
+if [[ "$BEFORE" == "$AFTER" ]]; then
+    fail "La contraseña NO cambió en FortiGate (hash idéntico, rc=${RC}); $(tail -n 4 <<< "$CLEAN" | tr '\n' '|' | cut -c1-300)"
+fi
+
 echo "RESULT=OK"

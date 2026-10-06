@@ -1,9 +1,9 @@
 ---
-- name: FortiGate Password Changes - Obtener correo del vault
+- name: "[{{ fortigate_pwd_user.name }}] Obtener correo del vault"
   ansible.builtin.set_fact:
     fortigate_pwd_email: "{{ (fortigate_vpn_user_emails | default({})).get(fortigate_pwd_user.name, '') }}"
 
-- name: FortiGate Password Changes - Evaluar elegibilidad de {{ fortigate_pwd_user.name }}
+- name: "[{{ fortigate_pwd_user.name }}] Evaluar elegibilidad"
   ansible.builtin.set_fact:
     fortigate_pwd_skip_reason: >-
       {%- if fortigate_pwd_user.name in fortigate_pwd_exclude_users -%}Excluido por configuración
@@ -12,7 +12,7 @@
       {%- elif fortigate_pwd_email | length == 0 -%}Sin correo en el vault (fortigate_vpn_user_emails); no se cambia para no dejar al usuario sin contraseña
       {%- endif -%}
 
-- name: FortiGate Password Changes - Registrar usuario omitido
+- name: "[{{ fortigate_pwd_user.name }}] Registrar usuario omitido"
   ansible.builtin.set_fact:
     fortigate_pwd_results: >-
       {{ fortigate_pwd_results + [{
@@ -21,10 +21,10 @@
         'mail': 'SKIPPED', 'note': fortigate_pwd_skip_reason | trim }] }}
   when: fortigate_pwd_skip_reason | trim | length > 0
 
-- name: FortiGate Password Changes - Cambiar contraseña y notificar
+- name: "[{{ fortigate_pwd_user.name }}] Cambiar contraseña y notificar"
   when: fortigate_pwd_skip_reason | trim | length == 0
   block:
-    - name: Generar nueva contraseña (política PCI DSS)
+    - name: "[2/4] Generar nueva contraseña (política PCI DSS)"
       ansible.builtin.command:
         argv:
           - python3
@@ -35,12 +35,24 @@
       no_log: true
       delegate_to: localhost
 
-    - name: Asignar contraseña generada
+    - name: "[2/4] Validar contraseña generada"
+      ansible.builtin.assert:
+        that:
+          - fortigate_pwd_generated.stdout | length >= 15
+          - fortigate_pwd_generated.stdout | regex_findall('[0-9]') | length >= 2
+          - fortigate_pwd_generated.stdout | regex_findall('[A-Z]') | length >= 2
+          - fortigate_pwd_generated.stdout | regex_findall('[a-z]') | length >= 2
+          - fortigate_pwd_generated.stdout | regex_findall('[^A-Za-z0-9]') | length >= 2
+        quiet: true
+        fail_msg: "La contraseña generada no cumple la política"
+      no_log: true
+
+    - name: "[2/4] Asignar contraseña generada"
       ansible.builtin.set_fact:
         fortigate_pwd_new: "{{ fortigate_pwd_generated.stdout }}"
       no_log: true
 
-    - name: Cambiar contraseña en FortiGate vía CLI
+    - name: "[3/4] Cambiar contraseña en FortiGate y verificar (hash antes/después)"
       ansible.builtin.command:
         argv:
           - bash
@@ -57,7 +69,13 @@
       no_log: true
       delegate_to: localhost
 
-    - name: Enviar nueva contraseña al usuario por correo (postfix)
+    - name: "[3/4] Resultado del cambio"
+      ansible.builtin.set_fact:
+        fortigate_pwd_changed: "{{ 'RESULT=OK' in fortigate_pwd_change.stdout }}"
+        fortigate_pwd_change_detail: "{{ fortigate_pwd_change.stdout_lines | select('match', '^DETAIL=') | list | first | default('') | replace('DETAIL=', '') }}"
+        fortigate_pwd_mail_status: "NOT_SENT"
+
+    - name: "[4/4] Enviar nueva contraseña al usuario por correo (postfix)"
       ansible.builtin.command:
         argv:
           - bash
@@ -71,19 +89,28 @@
       failed_when: false
       no_log: true
       delegate_to: localhost
-      when: "'RESULT=OK' in fortigate_pwd_change.stdout"
+      when: fortigate_pwd_changed | bool
 
-    - name: Registrar resultado
+    - name: "[4/4] Resultado del correo"
+      ansible.builtin.set_fact:
+        fortigate_pwd_mail_status: "{{ 'OK' if fortigate_pwd_mail.rc == 0 else 'FAILED' }}"
+      when: fortigate_pwd_changed | bool
+
+    - name: "Registrar resultado"
       ansible.builtin.set_fact:
         fortigate_pwd_results: >-
           {{ fortigate_pwd_results + [{
             'device': fortigate_pwd_device, 'name': fortigate_pwd_user.name,
             'email': fortigate_pwd_email,
-            'changed': 'OK' if 'RESULT=OK' in fortigate_pwd_change.stdout else 'FAILED',
-            'mail': ('OK' if fortigate_pwd_mail.rc == 0 else 'FAILED') if fortigate_pwd_mail is not skipped else 'NOT_SENT',
-            'note': ('Contraseña cambiada y notificada' if fortigate_pwd_mail is not skipped and fortigate_pwd_mail.rc == 0
-                     else 'Contraseña cambiada, fallo el envío de correo; requiere reenvío manual' if fortigate_pwd_mail is not skipped
-                     else 'Fallo el cambio en FortiGate; no se envió correo') }] }}
+            'changed': 'OK' if fortigate_pwd_changed | bool else 'FAILED',
+            'mail': fortigate_pwd_mail_status,
+            'note': ('Contraseña cambiada, verificada y notificada' if fortigate_pwd_mail_status == 'OK'
+                     else 'Contraseña cambiada y verificada; falló el envío del correo, requiere reenvío manual' if fortigate_pwd_changed | bool
+                     else 'Falló el cambio en FortiGate; no se envió correo. ' ~ fortigate_pwd_change_detail) }] }}
+
+    - name: "Resumen de {{ fortigate_pwd_user.name }}"
+      ansible.builtin.debug:
+        msg: "usuario detectado: OK | cambio verificado: {{ 'OK' if fortigate_pwd_changed | bool else 'FAILED' }} | correo: {{ fortigate_pwd_mail_status }}"
 
   always:
     - name: Limpiar contraseña de memoria
