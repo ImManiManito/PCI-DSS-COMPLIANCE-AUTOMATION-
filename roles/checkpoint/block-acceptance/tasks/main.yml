@@ -1,7 +1,7 @@
 ---
 - name: Checkpoint Block-Acceptance - Cargar credenciales de Infinity Portal (vault)
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../roles/checkpoint/vars/vault.yml"
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
 
 - name: Checkpoint Block-Acceptance - Definir rango de fechas (últimos 7 días, 00:00 a 23:59)
   ansible.builtin.set_fact:

@@ -1,0 +1,34 @@
+---
+# ÚNICO vault del proyecto (Check Point, FortiGate y Wazuh).
+# Cifrar antes de usar en producción:
+#   ansible-vault encrypt vars/vault.yml
+# Editar después de cifrado:
+#   ansible-vault edit vars/vault.yml
+
+# ---------------------------------------------------------------------------
+# Wazuh
+# ---------------------------------------------------------------------------
+# Contraseña sudo del usuario de Ansible (ansible) para leer /var/ossec/logs/alerts.
+wazuh_become_password: "SUDO_PASSWORD_AQUI"
+wazuh_mail_from: "correo@dominio.com"
+wazuh_mail_to: "correo@dominio.com"
+
+# ---------------------------------------------------------------------------
+# Check Point (Infinity Portal / Infinity Events)
+# ---------------------------------------------------------------------------
+checkpoint_infinity_client_id: "CLIENT_ID_AQUI"
+checkpoint_infinity_access_key: "ACCESS_KEY_AQUI"
+# Ajustar la región del gateway según el tenant.
+checkpoint_infinity_auth_url: "https://cloudinfra-gw-us.portal.checkpoint.com/auth/external"
+checkpoint_infinity_events_url: "https://cloudinfra-gw-us.portal.checkpoint.com/app/laas-logs-api/graphql"
+checkpoint_mail_from: "correo@dominio.com"
+checkpoint_mail_to: "correo@dominio.com"
+
+# ---------------------------------------------------------------------------
+# FortiGate
+# ---------------------------------------------------------------------------
+fortigate_mail_from: "correo@dominio.com"
+fortigate_mail_to: "correo@dominio.com"
+# Correo de cada usuario VPN (usuario FortiGate: correo). Quien no esté aquí NO se cambia.
+fortigate_vpn_user_emails:
+  usuario.ejemplo: "usuario.ejemplo@dominio.com"

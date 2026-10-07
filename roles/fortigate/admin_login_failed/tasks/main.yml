@@ -1,7 +1,7 @@
 ---
 - name: FortiGate Admin Login Failed - Cargar variables de correo (vault)
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../roles/fortigate/vars/vault.yml"
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
 
 - name: FortiGate Admin Login Failed - Definir fecha del reporte (últimas 24 horas)
   ansible.builtin.set_fact:

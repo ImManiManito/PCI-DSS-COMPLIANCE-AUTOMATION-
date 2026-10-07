@@ -1,7 +1,7 @@
 ---
 - name: Checkpoint Events IPS - Cargar credenciales de Infinity Portal (vault)
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../roles/checkpoint/vars/vault.yml"
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
 
 - name: Checkpoint Events IPS - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
   ansible.builtin.set_fact:

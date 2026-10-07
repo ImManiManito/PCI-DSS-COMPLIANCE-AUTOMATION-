@@ -21,7 +21,7 @@ roles/
     - tasks/ -- Ansible task definitions.
     - templates/ -- Jinja2 report templates.
     - common/ -- helpers shared across the platform's activities (for example, SSH execution and mail sending).
-    - vars/ -- Ansible Vault-encrypted variables (credentials, API endpoints, mail settings).
+    - (project root) vars/vault.yml -- single Ansible Vault file for all roles (credentials, API endpoints, mail settings, sudo password).
 
 inventory/
     Infrastructure inventory.

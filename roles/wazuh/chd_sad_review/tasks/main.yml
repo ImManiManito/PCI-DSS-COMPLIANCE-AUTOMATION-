@@ -1,7 +1,7 @@
 ---
 - name: Wazuh CHD SAD Review - Cargar credenciales (vault)
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../roles/wazuh/vars/vault.yml"
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
 
 - name: Wazuh CHD SAD Review - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
   ansible.builtin.set_fact:

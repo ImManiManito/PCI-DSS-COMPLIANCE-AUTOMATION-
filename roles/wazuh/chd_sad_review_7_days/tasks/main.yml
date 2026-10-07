@@ -1,7 +1,7 @@
 ---
 - name: Wazuh CHD SAD Review 7 días - Cargar credenciales (vault)
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../roles/wazuh/vars/vault.yml"
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
 
 - name: Wazuh CHD SAD Review 7 días - Definir rango de fechas (últimos 7 días)
   ansible.builtin.set_fact:
@@ -31,6 +31,8 @@
     ansible_become_password: "{{ wazuh_become_password }}"
   register: wazuh_chd_sad_review_7d_result
   changed_when: false
+  async: 3600
+  poll: 15
   no_log: true
 
 - name: Wazuh CHD SAD Review 7 días - Enviar evidencia por correo
