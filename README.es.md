@@ -55,7 +55,7 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 | 10.4.2.1.a, 10.4.2.1.b | Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | Pendiente |
 | 7.2.4.a, 7.2.4.b | Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | Pendiente |
 | 10.5.1.a, 10.5.1.b, 10.5.1.c | Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | Pendiente |
-| 8.3.9, 8.3.10.1 | Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | Pendiente |
+| 8.3.9, 8.3.10.1 | Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | Implementado |
 | 12.3.3 | Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Pendiente |
 | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | Pendiente |
 
