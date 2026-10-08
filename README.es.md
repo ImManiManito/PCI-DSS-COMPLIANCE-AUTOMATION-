@@ -45,10 +45,10 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 
 | Requisitos PCI DSS | Actividad (playbook) | Periodicidad | Estado |
 |---|---|---|---|
-| 10.4.1.a, 10.4.1.b, 10.6.1 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | Implementado |
+| 10.2.4, 10.2.7, 10.4.1.a, 10.4.1.b, 10.6.1 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Diaria | Implementado |
 | 8.6.3.a, 8.6.3.b, 8.6.3.c | Contraseñas comprometidas (`playbooks/daily/compromised_passwords.yml`) | Diaria | Implementado |
 | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Fallas de infraestructura (`playbooks/daily/infrastructure_failures.yml`) | Diaria | Implementado |
-| 11.5.2.a, 11.5.2.b, 10.6.1 | Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Implementado |
+| 10.2.4, 10.2.7, 10.6.1, 11.5.2.a, 11.5.2.b | Detección de cambios (`playbooks/weekly/change_detection.yml`) | Semanal | Implementado |
 | 10.4.2.a, 10.4.2.b | Registros requeridos (`playbooks/weekly/required_logs.yml`) | Semanal | Implementado |
 | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Registros de acceso (`playbooks/monthly/access_logs.yml`) | Mensual | Pendiente |
 | 8.2.6 | Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | Pendiente |
@@ -61,6 +61,12 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 
 `scripts_cron/` contiene los scripts de ejecución programada de las actividades anteriores. Consulta [scripts_cron/README.md](scripts_cron/README.md) para instrucciones de uso y ejemplos de cron.
 
+### Recolección y envío de evidencia
+
+- Las actividades diarias de revisión CHD/SAD y semanal de detección de cambios recolectan alertas de Wazuh que coinciden con los controles PCI DSS 10.6.1 (eventos con impacto en la seguridad), 10.2.4 (fallos de autenticación) y 10.2.7 (modificaciones de objetos). Cada control genera un CSV separado; la evidencia semanal abarca los últimos siete días.
+- La evidencia diaria de eventos de sistema de FortiGate cubre una ventana móvil de 24 horas en horario America/Mexico_City. Las consultas incluyen las fechas UTC actual y anterior; los resultados se filtran por la ventana exacta, se deduplican, se ordenan del más reciente al más antiguo y se muestran en horario CDMX.
+- Los auxiliares de correo de Check Point y Wazuh envían la evidencia como adjuntos MIME mediante el comando local `sendmail` de Postfix. El equipo requiere `sendmail` y `python3`; los auxiliares ya no dependen de una variante específica del paquete `mail`.
+
 ### Detalle de los requisitos
 
 **CHD SAD — 10.4.1.a / 10.4.1.b**
@@ -70,7 +76,7 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 > - Registros de todos los componentes críticos del sistema.
 > - Registros de todos los servidores y componentes del sistema que realizan funciones de seguridad (por ejemplo, controles de seguridad de red, sistemas de detección de intrusiones/sistemas de prevención de intrusiones (IDS/IPS), servidores de autenticación).
 >
-> Adicionalmente, el rol de Wazuh `chd_sad_review` ahora recolecta las alertas relacionadas con CHD/SAD desde `alerts.json` (filtradas por el grupo de reglas/etiqueta de control `10.6.1`) para complementar la evidencia diaria de FortiGate y Check Point.
+> Adicionalmente, el rol de Wazuh `chd_sad_review` recolecta desde `alerts.json` las alertas de los controles 10.6.1 (eventos con impacto en la seguridad), 10.2.4 (fallos de autenticación) y 10.2.7 (modificaciones de objetos). Genera un CSV por control e incluye los tres archivos en el correo de evidencia diaria.
 
 **Contraseñas comprometidas — 8.6.3.a / 8.6.3.b / 8.6.3.c**
 > Las contraseñas/frases de paso para cualquier cuenta de aplicación y de sistema están protegidas contra el uso indebido de la siguiente manera:
@@ -122,7 +128,7 @@ La siguiente tabla mapea cada actividad (playbook) con los requisitos de PCI DSS
 > - Para alertar al personal sobre modificaciones no autorizadas (incluyendo cambios, adiciones y eliminaciones) de archivos críticos.
 > - Para realizar comparaciones de archivos críticos al menos una vez por semana.
 >
-> Adicionalmente, el rol de Wazuh `chd_sad_review_7_days` ahora recolecta las alertas relacionadas con CHD/SAD de los últimos 7 días (filtradas por el grupo de reglas/etiqueta de control `10.6.1`) para complementar la evidencia semanal de FortiGate y Check Point.
+> Adicionalmente, el rol de Wazuh `chd_sad_review_7_days` recolecta de `alerts.json` las alertas de los últimos siete días para los controles 10.6.1 (eventos con impacto en la seguridad), 10.2.4 (fallos de autenticación) y 10.2.7 (modificaciones de objetos). Genera un CSV por control e incluye los tres archivos en el correo de evidencia semanal.
 
 **Cuentas privilegiadas — 7.2.4.a / 7.2.4.b**
 > Todas las cuentas de usuario y los privilegios de acceso relacionados, incluyendo las cuentas de terceros/proveedores, se revisan de la siguiente manera:

@@ -5,7 +5,7 @@
 
 - name: FortiGate System Events - Definir fecha del reporte (últimas 24 horas)
   ansible.builtin.set_fact:
-    fortigate_system_events_report_date: "{{ now(fmt='%Y-%m-%d') }}"
+    fortigate_system_events_report_date: "{{ lookup('pipe', 'TZ=America/Mexico_City date +%Y-%m-%d') }}"
     fortigate_system_events_evidence_dir: "{{ fortigate_system_events_evidence_dir | default('/opt/pci-dss-evidence/fortigate/system_events') }}"
 
 - name: FortiGate System Events - Definir subtipos de eventos a recolectar

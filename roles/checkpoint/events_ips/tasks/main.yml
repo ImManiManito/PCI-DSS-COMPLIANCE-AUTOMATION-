@@ -43,6 +43,6 @@
       - "{{ checkpoint_mail_from }}"
       - "{{ checkpoint_mail_to }}"
       - "Checkpoint Events IPS - Evidencia PCI DSS ({{ checkpoint_events_ips_report_date }})"
-      - "{{ checkpoint_events_ips_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb_{{ checkpoint_events_ips_report_date }}.csv"
+      - "{{ checkpoint_events_ips_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb.csv"
   changed_when: false
   delegate_to: localhost

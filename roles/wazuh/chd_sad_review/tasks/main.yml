@@ -17,23 +17,34 @@
     state: directory
     mode: "0750"
 
-- name: Wazuh CHD SAD Review - Filtrar alerts.json (PCI DSS 10.6.1) y generar evidencia CSV
+- name: Wazuh CHD SAD Review - Definir requisitos PCI DSS a filtrar
+  ansible.builtin.set_fact:
+    wazuh_chd_sad_requirements:
+      - { req: "10.6.1", name: "Eventos de impacto de seguridad CHD SAD" }
+      - { req: "10.2.4", name: "Fallos de autenticación" }
+      - { req: "10.2.7", name: "Modificaciones de objetos" }
+
+- name: Wazuh CHD SAD Review - Filtrar alerts.json (PCI DSS 10.6.1, 10.2.4, 10.2.7) y generar evidencia CSV
   ansible.builtin.shell:
     cmd: >
       bash "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/chd_sad_review.sh"
       "{{ wazuh_alerts_file }}"
-      "10.6.1"
+      "{{ item.req }}"
       "{{ wazuh_chd_sad_start_time }}"
       "{{ wazuh_chd_sad_end_time }}"
       | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
-      > "{{ wazuh_chd_sad_evidence_dir }}/CHD_SAD_Review_{{ wazuh_chd_sad_report_date }}.csv"
+      > "{{ wazuh_chd_sad_evidence_dir }}/{{ item.name }}_{{ wazuh_chd_sad_report_date }}.csv"
   become: true
   become_method: sudo
   vars:
     ansible_become_password: "{{ wazuh_become_password }}"
+    ansible_pipelining: false
+  loop: "{{ wazuh_chd_sad_requirements }}"
+  loop_control:
+    label: "{{ item.req }} - {{ item.name }}"
   register: wazuh_chd_sad_review_result
   changed_when: false
-  no_log: true
+  timeout: 300
 
 - name: Wazuh CHD SAD Review - Enviar evidencia por correo
   ansible.builtin.command:
@@ -42,6 +53,8 @@
       - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
       - "{{ wazuh_mail_from }}"
       - "{{ wazuh_mail_to }}"
-      - "Wazuh CHD SAD Review - Evidencia PCI DSS 10.6.1 ({{ wazuh_chd_sad_report_date }})"
-      - "{{ wazuh_chd_sad_evidence_dir }}/CHD_SAD_Review_{{ wazuh_chd_sad_report_date }}.csv"
+      - "Wazuh CHD SAD Review - Evidencia PCI DSS 10.6.1, 10.2.4, 10.2.7 ({{ wazuh_chd_sad_report_date }})"
+      - "{{ wazuh_chd_sad_evidence_dir }}/Eventos de impacto de seguridad CHD SAD_{{ wazuh_chd_sad_report_date }}.csv"
+      - "{{ wazuh_chd_sad_evidence_dir }}/Fallos de autenticación_{{ wazuh_chd_sad_report_date }}.csv"
+      - "{{ wazuh_chd_sad_evidence_dir }}/Modificaciones de objetos_{{ wazuh_chd_sad_report_date }}.csv"
   changed_when: false
