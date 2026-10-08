@@ -55,7 +55,7 @@ The table below maps each activity (playbook) to the PCI DSS requirements it sat
 | 10.4.2.1.a, 10.4.2.1.b | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Pending |
 | 7.2.4.a, 7.2.4.b | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Pending |
 | 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending |
-| 8.3.9, 8.3.10.1 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Pending |
+| 8.3.9, 8.3.10.1 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Implemented |
 | 12.3.3 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending |
 | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Pending |
 
