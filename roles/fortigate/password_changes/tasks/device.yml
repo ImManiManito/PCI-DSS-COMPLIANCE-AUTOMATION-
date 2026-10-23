@@ -37,9 +37,54 @@
         'mail': 'SKIPPED', 'note': 'Usuario del vault no encontrado entre los usuarios VPN del FortiGate' }] }}
   loop: "{{ fortigate_vpn_user_emails.keys() | list | difference(fortigate_pwd_users | map(attribute='name') | list) }}"
 
+- name: Inicializar cambios agrupados
+  ansible.builtin.set_fact:
+    fortigate_pwd_batch: []
+
 - name: Procesar cada usuario
   ansible.builtin.include_tasks: user.yml
   loop: "{{ fortigate_pwd_users }}"
   loop_control:
     loop_var: fortigate_pwd_user
     label: "{{ fortigate_pwd_user.name }}"
+
+- name: Ejecutar rotación agrupada en una única sesión SSH
+  when: fortigate_pwd_batch | length > 0
+  block:
+    - name: "[2/4] Cambiar y verificar todas las contraseñas"
+      ansible.builtin.command:
+        argv:
+          - python3
+          - "{{ playbook_dir }}/../../roles/fortigate/password_changes/scripts/fortigate_change_passwords.py"
+          - "{{ hostvars[fortigate_pwd_device].ansible_host }}"
+          - "{{ hostvars[fortigate_pwd_device].ansible_port }}"
+          - "{{ hostvars[fortigate_pwd_device].ansible_user }}"
+          - "{{ hostvars[fortigate_pwd_device].ansible_ssh_private_key_file }}"
+        stdin: "{{ fortigate_pwd_batch | to_json }}"
+      register: fortigate_pwd_batch_cmd
+      changed_when: false
+      no_log: true
+      delegate_to: localhost
+
+    - name: Cargar resultados de contraseña
+      ansible.builtin.set_fact:
+        fortigate_pwd_change_results: "{{ (fortigate_pwd_batch_cmd.stdout | from_json).results }}"
+
+    - name: Validar que haya un resultado por cada usuario
+      ansible.builtin.assert:
+        that:
+          - fortigate_pwd_change_results | length == fortigate_pwd_batch | length
+          - fortigate_pwd_change_results | map(attribute='name') | list == fortigate_pwd_batch | map(attribute='name') | list
+        fail_msg: "La sesión única no devolvió un resultado verificable para cada usuario."
+
+    - name: Notificar y registrar los cambios agrupados
+      ansible.builtin.include_tasks: notify_user.yml
+      loop: "{{ fortigate_pwd_batch }}"
+      loop_control:
+        loop_var: fortigate_pwd_item
+        label: "{{ fortigate_pwd_item.name }}"
+  always:
+    - name: Limpiar contraseñas de la sesión agrupada
+      ansible.builtin.set_fact:
+        fortigate_pwd_batch: []
+      no_log: true

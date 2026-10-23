@@ -1,0 +1,52 @@
+---
+- block:
+    - name: Obtener resultado del cambio agrupado
+      ansible.builtin.set_fact:
+        fortigate_pwd_change_result: "{{ fortigate_pwd_change_results | selectattr('name', 'equalto', fortigate_pwd_item.name) | list | first }}"
+        fortigate_pwd_mail_status: "NOT_SENT"
+        fortigate_pwd_new: "{{ fortigate_pwd_item.password }}"
+      no_log: true
+
+    - name: "[4/4] Enviar nueva contraseña al usuario por correo"
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/password_changes/scripts/send_user_password.sh"
+          - "{{ fortigate_mail_from }}"
+          - "{{ fortigate_pwd_item.email }}"
+          - "Cambio trimestral de contraseña VPN - {{ fortigate_pwd_report_date }}"
+          - "{{ playbook_dir }}/../../roles/fortigate/password_changes/templates/firma.png"
+        stdin: "{{ lookup('ansible.builtin.template', playbook_dir ~ '/../../roles/fortigate/password_changes/templates/user_notification.txt.j2') }}"
+      register: fortigate_pwd_mail
+      changed_when: false
+      failed_when: false
+      no_log: true
+      delegate_to: localhost
+      when: fortigate_pwd_change_result.changed | bool
+
+    - name: Registrar resultado del correo
+      ansible.builtin.set_fact:
+        fortigate_pwd_mail_status: "{{ 'OK' if fortigate_pwd_mail.rc == 0 else 'FAILED' }}"
+      when: fortigate_pwd_change_result.changed | bool
+
+    - name: Registrar resultado agrupado
+      ansible.builtin.set_fact:
+        fortigate_pwd_results: >-
+          {{ fortigate_pwd_results + [{
+            'device': fortigate_pwd_device, 'name': fortigate_pwd_item.name,
+            'email': fortigate_pwd_item.email,
+            'changed': 'OK' if fortigate_pwd_change_result.changed | bool else 'FAILED',
+            'mail': fortigate_pwd_mail_status if fortigate_pwd_change_result.changed | bool else 'SKIPPED',
+            'note': ('Contraseña cambiada, verificada y notificada' if fortigate_pwd_mail_status == 'OK'
+                     else 'Contraseña cambiada y verificada; falló el envío del correo, requiere reenvío manual' if fortigate_pwd_change_result.changed | bool
+                     else fortigate_pwd_change_result.detail) }] }}
+
+    - name: "Resumen de {{ fortigate_pwd_item.name }}"
+      ansible.builtin.debug:
+        msg: "cambio verificado: {{ 'OK' if fortigate_pwd_change_result.changed | bool else 'FAILED' }} | correo: {{ fortigate_pwd_mail_status }}"
+  always:
+    - name: Limpiar contraseña de memoria
+      ansible.builtin.set_fact:
+        fortigate_pwd_new: ""
+        fortigate_pwd_change_result: {}
+      no_log: true
