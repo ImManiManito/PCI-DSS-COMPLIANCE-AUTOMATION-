@@ -21,6 +21,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PLAYBOOK_DIR="${PROJECT_ROOT}/playbooks/weekly"
 
+# cron arranca en $HOME: hay que entrar al proyecto para que Ansible lea
+# ansible.cfg (inventario inventory/hosts.ini y roles_path).
+cd "${PROJECT_ROOT}"
+
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
     echo "${msg}"
@@ -51,9 +55,14 @@ fi
 overall_exit=0
 for playbook in "${playbooks[@]}"; do
     playbook_name=$(basename "${playbook}")
+    if [[ ! -s "${playbook}" ]]; then
+        log "OMITIDO: ${playbook_name} (archivo vacío)"
+        continue
+    fi
     log "Ejecutando playbook: ${playbook_name}"
-    ansible-playbook "${ANSIBLE_ARGS[@]}" "${playbook}"
-    rc=$?
+    # "|| rc=$?" evita que set -e aborte el script y deje sin correr los demás playbooks.
+    rc=0
+    ansible-playbook "${ANSIBLE_ARGS[@]}" "${playbook}" || rc=$?
     if [[ ${rc} -eq 0 ]]; then
         log "OK: ${playbook_name}"
     else
