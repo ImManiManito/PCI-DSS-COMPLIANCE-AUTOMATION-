@@ -9,6 +9,8 @@
     wazuh_chd_sad_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
     wazuh_chd_sad_7d_evidence_dir: "{{ wazuh_chd_sad_7d_evidence_dir | default('/opt/pci-dss-evidence/wazuh/chd_sad_review_7_days') }}"
     wazuh_alerts_base_dir: "{{ wazuh_alerts_base_dir | default('/var/ossec/logs/alerts') }}"
+    # Usuario que ejecuta Ansible (svc_ansible): dueño de los CSV para poder adjuntarlos al correo.
+    wazuh_evidence_owner: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
 
 - name: Wazuh CHD SAD Review 7 días - Crear directorio de evidencias
   ansible.builtin.file:
@@ -22,7 +24,7 @@
       - { req: "10.6.1", name: "Eventos de impacto de seguridad CHD SAD" }
       - { req: "10.2.4", name: "Fallos de autenticación" }
       - { req: "10.2.7", name: "Modificaciones de objetos" }
-    wazuh_chd_sad_7d_suffix: "7_dias_{{ wazuh_chd_sad_7d_start_date }}_a_{{ wazuh_chd_sad_7d_end_date }}"
+    wazuh_chd_sad_7d_suffix: "7_dias"
 
 - name: Wazuh CHD SAD Review 7 días - Filtrar histórico de alertas (PCI DSS 10.6.1, 10.2.4, 10.2.7) y generar evidencia CSV
   ansible.builtin.shell:
@@ -32,12 +34,16 @@
       "{{ item.req }}"
       "7"
       | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
-      > "{{ wazuh_chd_sad_7d_evidence_dir }}/{{ item.name }}_{{ wazuh_chd_sad_7d_suffix }}.csv"
+      > "{{ wazuh_chd_sad_7d_csv }}"
+      && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_chd_sad_7d_csv }}"
+      && chmod 0640 "{{ wazuh_chd_sad_7d_csv }}"
   become: true
   become_method: sudo
   vars:
     ansible_become_password: "{{ wazuh_become_password }}"
     ansible_pipelining: false
+    # El CSV se crea como root; se reasigna al usuario de Ansible para que el correo pueda leerlo.
+    wazuh_chd_sad_7d_csv: "{{ wazuh_chd_sad_7d_evidence_dir }}/{{ item.name }}_{{ wazuh_chd_sad_7d_suffix }}.csv"
   loop: "{{ wazuh_chd_sad_7d_requirements }}"
   loop_control:
     label: "{{ item.req }} - {{ item.name }}"

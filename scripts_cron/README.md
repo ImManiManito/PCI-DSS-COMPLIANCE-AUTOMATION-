@@ -26,18 +26,19 @@ PCI-DSS-COMPLIANCE-AUTOMATION- según su frecuencia definida.
 
 ## Uso de Ansible Vault
 
-Si se cifran las variables sensibles con Ansible Vault, crear un archivo con la
-contraseña de Vault (por ejemplo, `~/.vault_pass`) con permisos restrictivos:
+La contraseña del vault se toma sola, sin pedirla, del archivo
+`~/.ansible/.vault_pass` del usuario que ejecuta cron (`vault_password_file` en
+`ansible.cfg`). No hace falta exportar variables ni ponerlas en el crontab.
+Crearlo una sola vez, como ese usuario:
 
 ```bash
-chmod 600 ~/.vault_pass
+install -d -m 700 ~/.ansible
+( umask 077; read -rsp "Vault password: " p; echo; printf '%s\n' "$p" > ~/.ansible/.vault_pass; unset p )
+chmod 400 ~/.ansible/.vault_pass
 ```
 
-Y exportar la variable de entorno antes de la ejecución o en el crontab:
-
-```bash
-export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/segura/.vault_pass
-```
+Si el archivo no existe, los scripts terminan con un error claro antes de ejecutar
+los playbooks. Para usar otra ruta, exportar `ANSIBLE_VAULT_PASSWORD_FILE`.
 
 ## Configuración de cron (ejemplo)
 

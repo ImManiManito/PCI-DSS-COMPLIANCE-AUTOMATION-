@@ -1,11 +1,14 @@
+{% for result in fortigate_configuration_changes_results.results %}
 ==================================================================
 Evidencia PCI DSS - FortiGate Configuration Changes
 ==================================================================
-Dispositivo            : {{ fortigate_device }}
+Dispositivo            : {{ result.item }}
 Tipo de evento         : Configuration Changes (subtype: system)
 Niveles filtrados      : notice, information
 Rango cubierto         : Últimas 24 horas ({{ fortigate_configuration_changes_report_date }})
 Generado el            : {{ now(fmt='%Y-%m-%d %H:%M:%S') }}
 ==================================================================
 
-{{ fortigate_raw_output }}
+{{ result.stdout }}
+
+{% endfor %}

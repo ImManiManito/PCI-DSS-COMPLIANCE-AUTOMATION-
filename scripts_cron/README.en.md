@@ -26,18 +26,19 @@ PCI-DSS-COMPLIANCE-AUTOMATION- according to their defined frequency.
 
 ## Ansible Vault usage
 
-If sensitive variables are encrypted with Ansible Vault, create a file with the
-Vault password (for example, `~/.vault_pass`) with restrictive permissions:
+The vault password is read automatically, without prompting, from
+`~/.ansible/.vault_pass` of the user that runs cron (`vault_password_file` in
+`ansible.cfg`). No environment variables or crontab entries are needed. Create it
+once, as that user:
 
 ```bash
-chmod 600 ~/.vault_pass
+install -d -m 700 ~/.ansible
+( umask 077; read -rsp "Vault password: " p; echo; printf '%s\n' "$p" > ~/.ansible/.vault_pass; unset p )
+chmod 400 ~/.ansible/.vault_pass
 ```
 
-And export the environment variable before running or in the crontab:
-
-```bash
-export ANSIBLE_VAULT_PASSWORD_FILE=/secure/path/.vault_pass
-```
+If the file is missing, the scripts stop with a clear error before running any
+playbook. To use a different path, export `ANSIBLE_VAULT_PASSWORD_FILE`.
 
 ## Cron configuration example
 

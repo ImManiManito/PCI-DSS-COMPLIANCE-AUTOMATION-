@@ -6,8 +6,8 @@
 # Programación típica en cron (ejemplo a las 06:30):
 #   30 6 * * * /ruta/al/proyecto/scripts_cron/run_weekly.sh >> /ruta/al/proyecto/logs/cron_weekly.log 2>&1
 #
-# Si se usa Ansible Vault, exportar la variable de entorno antes de ejecutar:
-#   export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/segura/.vault_pass
+# La contraseña de Ansible Vault se lee sola de ~/.ansible/.vault_pass (permisos 400),
+# sin pedirla. Para usar otra ruta: export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/.vault_pass
 
 set -euo pipefail
 
@@ -25,20 +25,26 @@ PLAYBOOK_DIR="${PROJECT_ROOT}/playbooks/weekly"
 # ansible.cfg (inventario inventory/hosts.ini y roles_path).
 cd "${PROJECT_ROOT}"
 
+# Identificador de esta corrida: los roles de FortiGate lo usan para abrir UNA sola
+# sesión SSH por equipo y reutilizar esos logs en todos los playbooks de la corrida.
+PCI_RUN_ID="$(date +%Y%m%d%H%M%S)-$$"
+export PCI_RUN_ID
+
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
     echo "${msg}"
 }
 
-ANSIBLE_ARGS=()
-if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
-    if [[ -f "${ANSIBLE_VAULT_PASSWORD_FILE}" ]]; then
-        ANSIBLE_ARGS+=(--vault-password-file "${ANSIBLE_VAULT_PASSWORD_FILE}")
-        log "Usando vault password file: ${ANSIBLE_VAULT_PASSWORD_FILE}"
-    else
-        log "ADVERTENCIA: ANSIBLE_VAULT_PASSWORD_FILE=${ANSIBLE_VAULT_PASSWORD_FILE} no existe."
-    fi
+# Contraseña del vault: se toma sola de un archivo, sin pedirla (cron no tiene teclado).
+# Por defecto ~/.ansible/.vault_pass, la misma ruta que vault_password_file en ansible.cfg.
+VAULT_PASS_FILE="${ANSIBLE_VAULT_PASSWORD_FILE:-${HOME}/.ansible/.vault_pass}"
+if [[ ! -r "${VAULT_PASS_FILE}" ]]; then
+    log "ERROR: No se puede leer el archivo con la contraseña del vault: ${VAULT_PASS_FILE}"
+    log "Créalo como el usuario que ejecuta cron (ver scripts_cron/README.md) o define ANSIBLE_VAULT_PASSWORD_FILE."
+    exit 1
 fi
+export ANSIBLE_VAULT_PASSWORD_FILE="${VAULT_PASS_FILE}"
+log "Usando vault password file: ${VAULT_PASS_FILE}"
 
 log "Inicio ejecución semanal"
 log "Directorio de playbooks: ${PLAYBOOK_DIR}"
@@ -62,7 +68,7 @@ for playbook in "${playbooks[@]}"; do
     log "Ejecutando playbook: ${playbook_name}"
     # "|| rc=$?" evita que set -e aborte el script y deje sin correr los demás playbooks.
     rc=0
-    ansible-playbook "${ANSIBLE_ARGS[@]}" "${playbook}" || rc=$?
+    ansible-playbook "${playbook}" || rc=$?
     if [[ ${rc} -eq 0 ]]; then
         log "OK: ${playbook_name}"
     else

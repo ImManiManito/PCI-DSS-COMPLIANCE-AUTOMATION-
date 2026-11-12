@@ -7,6 +7,10 @@
   ansible.builtin.set_fact:
     fortigate_admin_login_failed_report_date: "{{ now(fmt='%Y-%m-%d') }}"
     fortigate_admin_login_failed_evidence_dir: "{{ fortigate_admin_login_failed_evidence_dir | default('/opt/pci-dss-evidence/fortigate/admin_login_failed') }}"
+    fortigate_admin_login_failed_file: "admin login failed.txt"
+    # Una sola sesión SSH por FortiGate y por ejecución (ver common/fortigate_collect_logs.sh)
+    fortigate_log_cache_dir: "{{ fortigate_log_cache_dir | default('/opt/pci-dss-evidence/fortigate/.cache') }}"
+    fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 - name: FortiGate Admin Login Failed - Crear directorio de evidencias
   ansible.builtin.file:
@@ -24,27 +28,22 @@
       - "{{ hostvars[item].ansible_port }}"
       - "{{ hostvars[item].ansible_user }}"
       - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+      - "{{ item }}"
+      - "{{ fortigate_run_id }}"
+      - "{{ fortigate_log_cache_dir }}"
       - "{{ fortigate_admin_login_failed_report_date }}"
   loop: "{{ groups['fortigates'] }}"
   loop_control:
     label: "{{ item }}"
-    index_var: fortigate_admin_login_failed_idx
   register: fortigate_admin_login_failed_results
   changed_when: false
   delegate_to: localhost
 
-- name: FortiGate Admin Login Failed - Generar evidencia en archivo .txt
+- name: FortiGate Admin Login Failed - Generar evidencia en archivo .txt (una sección por equipo)
   ansible.builtin.template:
     src: "{{ playbook_dir }}/../../roles/fortigate/admin_login_failed/templates/admin_login_failed_report.txt.j2"
-    dest: "{{ fortigate_admin_login_failed_evidence_dir }}/Fallos_de_inicio_de_sesion_admin.txt"
+    dest: "{{ fortigate_admin_login_failed_evidence_dir }}/{{ fortigate_admin_login_failed_file }}"
     mode: "0640"
-  loop: "{{ groups['fortigates'] }}"
-  loop_control:
-    label: "{{ item }}"
-    index_var: fortigate_admin_login_failed_idx
-  vars:
-    fortigate_device: "{{ item }}"
-    fortigate_raw_output: "{{ fortigate_admin_login_failed_results.results[fortigate_admin_login_failed_idx].stdout }}"
   delegate_to: localhost
 
 - name: FortiGate Admin Login Failed - Enviar evidencia por correo
@@ -55,6 +54,6 @@
       - "{{ fortigate_mail_from }}"
       - "{{ fortigate_mail_to }}"
       - "FortiGate Admin Login Failed - Evidencia PCI DSS ({{ fortigate_admin_login_failed_report_date }})"
-      - "{{ fortigate_admin_login_failed_evidence_dir }}/Fallos_de_inicio_de_sesion_admin.txt"
+      - "{{ fortigate_admin_login_failed_evidence_dir }}/{{ fortigate_admin_login_failed_file }}"
   changed_when: false
   delegate_to: localhost

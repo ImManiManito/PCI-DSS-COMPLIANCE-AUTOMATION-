@@ -10,6 +10,8 @@
     wazuh_chd_sad_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59"
     wazuh_chd_sad_evidence_dir: "{{ wazuh_chd_sad_evidence_dir | default('/opt/pci-dss-evidence/wazuh/chd_sad_review') }}"
     wazuh_alerts_file: "{{ wazuh_alerts_file | default('/var/ossec/logs/alerts/alerts.json') }}"
+    # Usuario que ejecuta Ansible (svc_ansible): dueño de los CSV para poder adjuntarlos al correo.
+    wazuh_evidence_owner: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
 
 - name: Wazuh CHD SAD Review - Crear directorio de evidencias
   ansible.builtin.file:
@@ -33,12 +35,16 @@
       "{{ wazuh_chd_sad_start_time }}"
       "{{ wazuh_chd_sad_end_time }}"
       | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
-      > "{{ wazuh_chd_sad_evidence_dir }}/{{ item.name }}_{{ wazuh_chd_sad_report_date }}.csv"
+      > "{{ wazuh_chd_sad_csv }}"
+      && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_chd_sad_csv }}"
+      && chmod 0640 "{{ wazuh_chd_sad_csv }}"
   become: true
   become_method: sudo
   vars:
     ansible_become_password: "{{ wazuh_become_password }}"
     ansible_pipelining: false
+    # El CSV se crea como root; se reasigna al usuario de Ansible para que el correo pueda leerlo.
+    wazuh_chd_sad_csv: "{{ wazuh_chd_sad_evidence_dir }}/{{ item.name }}.csv"
   loop: "{{ wazuh_chd_sad_requirements }}"
   loop_control:
     label: "{{ item.req }} - {{ item.name }}"
@@ -54,7 +60,7 @@
       - "{{ wazuh_mail_from }}"
       - "{{ wazuh_mail_to }}"
       - "Wazuh CHD SAD Review - Evidencia PCI DSS 10.6.1, 10.2.4, 10.2.7 ({{ wazuh_chd_sad_report_date }})"
-      - "{{ wazuh_chd_sad_evidence_dir }}/Eventos de impacto de seguridad CHD SAD_{{ wazuh_chd_sad_report_date }}.csv"
-      - "{{ wazuh_chd_sad_evidence_dir }}/Fallos de autenticación_{{ wazuh_chd_sad_report_date }}.csv"
-      - "{{ wazuh_chd_sad_evidence_dir }}/Modificaciones de objetos_{{ wazuh_chd_sad_report_date }}.csv"
+      - "{{ wazuh_chd_sad_evidence_dir }}/Eventos de impacto de seguridad CHD SAD.csv"
+      - "{{ wazuh_chd_sad_evidence_dir }}/Fallos de autenticación.csv"
+      - "{{ wazuh_chd_sad_evidence_dir }}/Modificaciones de objetos.csv"
   changed_when: false

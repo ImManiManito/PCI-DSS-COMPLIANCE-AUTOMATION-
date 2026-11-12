@@ -27,11 +27,13 @@ command -v jq >/dev/null 2>&1 || { echo "ERROR: se requiere 'jq'." >&2; exit 1; 
 
 # alerts.json es un stream de objetos JSON (uno por alerta); jq los procesa
 # directamente sin necesidad de que estén separados por comas o en un arreglo.
-jq -c \
+# Prefiltro textual barato (igual que en chd_sad_review_7_days.sh): alerts.json puede
+# pesar varios GB a mediodía y pasarlo completo por jq tres veces excede el timeout.
+{ grep -F "\"$PCI_DSS_REQUIREMENT\"" "$ALERTS_FILE" || true; } | jq -c \
     --arg req "$PCI_DSS_REQUIREMENT" \
     --arg start "$START_TIME" \
     --arg t_end "$END_TIME" \
     'select(
         ((.rule.pci_dss? // []) | index($req)) != null
         and (.timestamp >= $start and .timestamp <= $t_end)
-    )' "$ALERTS_FILE"
+    )'

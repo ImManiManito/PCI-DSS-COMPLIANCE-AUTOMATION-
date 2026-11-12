@@ -8,6 +8,9 @@
     fortigate_forward_traffic_end_date: "{{ now(fmt='%Y-%m-%d') }}"
     fortigate_forward_traffic_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
     fortigate_forward_traffic_evidence_dir: "{{ fortigate_forward_traffic_evidence_dir | default('/opt/pci-dss-evidence/fortigate/security_events_and_forward_traffic') }}"
+    # Una sola sesión SSH por FortiGate y por ejecución (ver common/fortigate_collect_logs.sh)
+    fortigate_log_cache_dir: "{{ fortigate_log_cache_dir | default('/opt/pci-dss-evidence/fortigate/.cache') }}"
+    fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 - name: FortiGate Forward Traffic 7 días - Crear directorio de evidencias
   ansible.builtin.file:
@@ -26,6 +29,8 @@
       - "{{ hostvars[item].ansible_user }}"
       - "{{ hostvars[item].ansible_ssh_private_key_file }}"
       - "{{ item }}"
+      - "{{ fortigate_run_id }}"
+      - "{{ fortigate_log_cache_dir }}"
   loop: "{{ groups['fortigates'] }}"
   loop_control:
     label: "{{ item }}"
@@ -58,6 +63,8 @@
       - "{{ hostvars[item].ansible_user }}"
       - "{{ hostvars[item].ansible_ssh_private_key_file }}"
       - "{{ item }}"
+      - "{{ fortigate_run_id }}"
+      - "{{ fortigate_log_cache_dir }}"
   loop: "{{ groups['fortigates'] }}"
   loop_control:
     label: "{{ item }}"

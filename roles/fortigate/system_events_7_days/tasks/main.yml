@@ -8,6 +8,9 @@
     fortigate_system_events_7d_end_date: "{{ now(fmt='%Y-%m-%d') }}"
     fortigate_system_events_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
     fortigate_system_events_7d_evidence_dir: "{{ fortigate_system_events_7d_evidence_dir | default('/opt/pci-dss-evidence/fortigate/system_events_7_days') }}"
+    # Una sola sesión SSH por FortiGate y por ejecución (ver common/fortigate_collect_logs.sh)
+    fortigate_log_cache_dir: "{{ fortigate_log_cache_dir | default('/opt/pci-dss-evidence/fortigate/.cache') }}"
+    fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 - name: FortiGate System Events 7 días - Definir subtipos de eventos a recolectar
   ansible.builtin.set_fact:
@@ -38,6 +41,9 @@
       - "{{ hostvars[item.0].ansible_port }}"
       - "{{ hostvars[item.0].ansible_user }}"
       - "{{ hostvars[item.0].ansible_ssh_private_key_file }}"
+      - "{{ item.0 }}"
+      - "{{ fortigate_run_id }}"
+      - "{{ fortigate_log_cache_dir }}"
       - "{{ item.1.subtype }}"
   loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
   loop_control:

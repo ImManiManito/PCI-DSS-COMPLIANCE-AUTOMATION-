@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-"""Parsea la salida cruda de 'execute log display' filtrando entradas de cambios de configuración."""
+"""Parsea la salida cruda de 'execute log display' filtrando entradas de cambios de configuración.
+
+La entrada mezcla todas las consultas del día (una sola sesión SSH), así que aquí se
+aplican los mismos filtros que antes hacía el FortiGate: subtype=system,
+level=notice/information y la fecha del reporte.
+"""
+import argparse
 import re
 import sys
 
 SEPARATOR = "-" * 70
 
 FIELD_PATTERN = re.compile(r'(\w+)=("[^"]*"|\S+)')
+
+LEVELS = {"notice", "information"}
 
 
 def parse_line(line):
@@ -32,13 +40,28 @@ def format_entry(log):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", required=True, help="Fecha del reporte (YYYY-MM-DD)")
+    args = parser.parse_args()
+
     raw = sys.stdin.read()
     entries = []
+    seen = set()
     for line in raw.splitlines():
         # Solo procesar líneas de log reales (tienen date= y logid=)
         if "date=" not in line or "logid=" not in line:
             continue
         log = parse_line(line)
+        if log.get("date") != args.date:
+            continue
+        if log.get("subtype", "").lower() != "system":
+            continue
+        if log.get("level", "").lower() not in LEVELS:
+            continue
+        key = frozenset(log.items())
+        if key in seen:
+            continue
+        seen.add(key)
         entries.append(format_entry(log))
 
     if entries:

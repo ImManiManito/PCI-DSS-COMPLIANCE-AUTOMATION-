@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Parsea la salida cruda de 'execute log display' de FortiGate a un formato legible para evidencia PCI DSS."""
+import argparse
 import re
 import sys
 
@@ -34,6 +35,15 @@ def format_entry(log):
 
 
 def main():
+    # La entrada mezcla todas las consultas de la semana (eventos, tráfico, webfilter),
+    # así que se filtra por subtipo y nivel.
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--subtype", required=True, help="Subtipo permitido (system, vpn, user)")
+    parser.add_argument("--levels", required=True, help="Niveles permitidos separados por coma")
+    args = parser.parse_args()
+    subtype = args.subtype.lower()
+    levels = {lvl.strip().lower() for lvl in args.levels.split(",")}
+
     raw = sys.stdin.read()
     entries = []
     for line in raw.splitlines():
@@ -41,6 +51,10 @@ def main():
         if "date=" not in line or "logid=" not in line:
             continue
         log = parse_line(line)
+        if log.get("subtype", "").lower() != subtype:
+            continue
+        if log.get("level", "").lower() not in levels:
+            continue
         entries.append(format_entry(log))
 
     if entries:

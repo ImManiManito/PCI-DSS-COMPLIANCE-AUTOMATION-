@@ -60,8 +60,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--hours", type=int, default=24, help="Ventana en horas hacia atrás desde ahora")
     parser.add_argument("--levels", required=True, help="Niveles permitidos separados por coma")
+    parser.add_argument("--subtype", help="Subtipo permitido (system, vpn, user); la entrada mezcla varios")
     args = parser.parse_args()
     levels = {lvl.strip().lower() for lvl in args.levels.split(",")}
+    subtype = args.subtype.lower() if args.subtype else None
     now_cdmx = datetime.now(CDMX)
     window_start = now_cdmx - timedelta(hours=args.hours)
 
@@ -73,6 +75,8 @@ def main():
         if "date=" not in line or "logid=" not in line:
             continue
         log = parse_line(line)
+        if subtype and log.get("subtype", "").lower() != subtype:
+            continue
         local_dt = to_cdmx(log)
         if local_dt is None or not (window_start <= local_dt <= now_cdmx):
             continue
