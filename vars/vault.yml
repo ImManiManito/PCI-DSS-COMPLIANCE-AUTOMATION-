@@ -20,7 +20,8 @@ checkpoint_infinity_client_id: "CLIENT_ID_AQUI"
 checkpoint_infinity_access_key: "ACCESS_KEY_AQUI"
 # Ajustar la región del gateway según el tenant.
 checkpoint_infinity_auth_url: "https://cloudinfra-gw-us.portal.checkpoint.com/auth/external"
-checkpoint_infinity_events_url: "https://cloudinfra-gw-us.portal.checkpoint.com/app/laas-logs-api/graphql"
+# Endpoint logs_query de la API de Infinity Events (búsqueda, estado y descarga de logs).
+checkpoint_infinity_events_url: "https://cloudinfra-gw-us.portal.checkpoint.com/app/laas-logs-api/api/logs_query"
 checkpoint_mail_from: "correo@dominio.com"
 checkpoint_mail_to: "correo@dominio.com"
 

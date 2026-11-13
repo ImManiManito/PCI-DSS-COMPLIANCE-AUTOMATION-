@@ -7,16 +7,9 @@
   ansible.builtin.set_fact:
     wazuh_chd_sad_7d_end_date: "{{ now(fmt='%Y-%m-%d') }}"
     wazuh_chd_sad_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
-    wazuh_chd_sad_7d_evidence_dir: "{{ wazuh_chd_sad_7d_evidence_dir | default('/opt/pci-dss-evidence/wazuh/chd_sad_review_7_days') }}"
     wazuh_alerts_base_dir: "{{ wazuh_alerts_base_dir | default('/var/ossec/logs/alerts') }}"
     # Usuario que ejecuta Ansible (svc_ansible): dueño de los CSV para poder adjuntarlos al correo.
     wazuh_evidence_owner: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
-
-- name: Wazuh CHD SAD Review 7 días - Crear directorio de evidencias
-  ansible.builtin.file:
-    path: "{{ wazuh_chd_sad_7d_evidence_dir }}"
-    state: directory
-    mode: "0750"
 
 - name: Wazuh CHD SAD Review 7 días - Definir requisitos PCI DSS a filtrar
   ansible.builtin.set_fact:
@@ -26,40 +19,59 @@
       - { req: "10.2.7", name: "Modificaciones de objetos" }
     wazuh_chd_sad_7d_suffix: "7_dias"
 
-- name: Wazuh CHD SAD Review 7 días - Filtrar histórico de alertas (PCI DSS 10.6.1, 10.2.4, 10.2.7) y generar evidencia CSV
-  ansible.builtin.shell:
-    cmd: >
-      bash "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review_7_days/scripts/chd_sad_review_7_days.sh"
-      "{{ wazuh_alerts_base_dir }}"
-      "{{ item.req }}"
-      "7"
-      | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
-      > "{{ wazuh_chd_sad_7d_csv }}"
-      && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_chd_sad_7d_csv }}"
-      && chmod 0640 "{{ wazuh_chd_sad_7d_csv }}"
-  become: true
-  become_method: sudo
-  vars:
-    ansible_become_password: "{{ wazuh_become_password }}"
-    ansible_pipelining: false
-    # El CSV se crea como root; se reasigna al usuario de Ansible para que el correo pueda leerlo.
-    wazuh_chd_sad_7d_csv: "{{ wazuh_chd_sad_7d_evidence_dir }}/{{ item.name }}_{{ wazuh_chd_sad_7d_suffix }}.csv"
-  loop: "{{ wazuh_chd_sad_7d_requirements }}"
-  loop_control:
-    label: "{{ item.req }} - {{ item.name }}"
-  register: wazuh_chd_sad_review_7d_result
-  changed_when: false
-  timeout: 300
+# La evidencia solo existe en un directorio temporal privado (0700, de svc_ansible)
+# mientras se envía: en cuanto postfix acepta el correo (o si algo falla) se elimina.
+- name: Wazuh CHD SAD Review 7 días - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_wazuh_chd_sad_review_7d_
+  register: wazuh_chd_sad_7d_tmp
 
-- name: Wazuh CHD SAD Review 7 días - Enviar evidencia por correo
-  ansible.builtin.command:
-    argv:
-      - bash
-      - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
-      - "{{ wazuh_mail_from }}"
-      - "{{ wazuh_mail_to }}"
-      - "Wazuh CHD SAD Review 7 días - Evidencia PCI DSS 10.6.1, 10.2.4, 10.2.7 ({{ wazuh_chd_sad_7d_start_date }} a {{ wazuh_chd_sad_7d_end_date }})"
-      - "{{ wazuh_chd_sad_7d_evidence_dir }}/Eventos de impacto de seguridad CHD SAD_{{ wazuh_chd_sad_7d_suffix }}.csv"
-      - "{{ wazuh_chd_sad_7d_evidence_dir }}/Fallos de autenticación_{{ wazuh_chd_sad_7d_suffix }}.csv"
-      - "{{ wazuh_chd_sad_7d_evidence_dir }}/Modificaciones de objetos_{{ wazuh_chd_sad_7d_suffix }}.csv"
-  changed_when: false
+- name: Wazuh CHD SAD Review 7 días - Generar, enviar y eliminar evidencia
+  block:
+    - name: Wazuh CHD SAD Review 7 días - Definir ruta temporal de la evidencia
+      ansible.builtin.set_fact:
+        wazuh_chd_sad_7d_evidence_dir: "{{ wazuh_chd_sad_7d_tmp.path }}"
+
+    - name: Wazuh CHD SAD Review 7 días - Filtrar histórico de alertas (PCI DSS 10.6.1, 10.2.4, 10.2.7) y generar evidencia CSV
+      ansible.builtin.shell:
+        cmd: >
+          bash "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review_7_days/scripts/chd_sad_review_7_days.sh"
+          "{{ wazuh_alerts_base_dir }}"
+          "{{ item.req }}"
+          "7"
+          | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
+          > "{{ wazuh_chd_sad_7d_csv }}"
+          && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_chd_sad_7d_csv }}"
+          && chmod 0600 "{{ wazuh_chd_sad_7d_csv }}"
+      become: true
+      become_method: sudo
+      vars:
+        ansible_become_password: "{{ wazuh_become_password }}"
+        ansible_pipelining: false
+        # El CSV se crea como root; se reasigna al usuario de Ansible para que el correo pueda leerlo.
+        wazuh_chd_sad_7d_csv: "{{ wazuh_chd_sad_7d_evidence_dir }}/{{ item.name }}_{{ wazuh_chd_sad_7d_suffix }}.csv"
+      loop: "{{ wazuh_chd_sad_7d_requirements }}"
+      loop_control:
+        label: "{{ item.req }} - {{ item.name }}"
+      register: wazuh_chd_sad_review_7d_result
+      changed_when: false
+      timeout: 300
+
+    - name: Wazuh CHD SAD Review 7 días - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
+          - "{{ wazuh_mail_from }}"
+          - "{{ wazuh_mail_to }}"
+          - "Wazuh CHD SAD Review 7 días - Evidencia PCI DSS 10.6.1, 10.2.4, 10.2.7 ({{ wazuh_chd_sad_7d_start_date }} a {{ wazuh_chd_sad_7d_end_date }})"
+          - "{{ wazuh_chd_sad_7d_evidence_dir }}/Eventos de impacto de seguridad CHD SAD_{{ wazuh_chd_sad_7d_suffix }}.csv"
+          - "{{ wazuh_chd_sad_7d_evidence_dir }}/Fallos de autenticación_{{ wazuh_chd_sad_7d_suffix }}.csv"
+          - "{{ wazuh_chd_sad_7d_evidence_dir }}/Modificaciones de objetos_{{ wazuh_chd_sad_7d_suffix }}.csv"
+      changed_when: false
+  always:
+    - name: Wazuh CHD SAD Review 7 días - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ wazuh_chd_sad_7d_tmp.path }}"
+        state: absent

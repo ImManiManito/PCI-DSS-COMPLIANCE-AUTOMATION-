@@ -24,6 +24,14 @@ cd "${PROJECT_ROOT}"
 PCI_RUN_ID="$(date +%Y%m%d%H%M%S)-$$"
 export PCI_RUN_ID
 
+# Directorio temporal privado de la corrida: ahí quedan los logs crudos de FortiGate
+# que comparten los playbooks. Se borra completo al terminar (con éxito o con error):
+# no se guarda información en el servidor. Las evidencias de cada rol ya se eliminan
+# en cuanto postfix acepta el correo.
+PCI_RUN_TMPDIR="$(mktemp -d -t pci_run_XXXXXX)"
+export PCI_RUN_TMPDIR
+trap 'rm -rf "${PCI_RUN_TMPDIR}"' EXIT
+
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
     echo "${msg}"

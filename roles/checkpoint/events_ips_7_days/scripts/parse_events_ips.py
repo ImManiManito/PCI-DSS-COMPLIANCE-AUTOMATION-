@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Parsea las páginas JSON de Infinity Events (IPS) y genera un CSV de evidencia PCI DSS (últimos 7 días)."""
+"""Parsea las páginas JSON de Infinity Events (IPS) y genera un CSV de evidencia PCI DSS (últimos 7 días).
+
+Lee de stdin una página JSON por línea (la salida de checkpoint_events_ips_7_days.sh)
+y escribe el CSV resultante en stdout. Termina con error si una línea no es JSON
+válido, para no generar evidencia incompleta.
+"""
 
 import csv
 import json
@@ -26,7 +31,7 @@ def extract_logs(page):
         candidates.append(data)
 
     for container in candidates:
-        for key in ("logs", "records", "results", "events"):
+        for key in ("records", "logs", "results", "events"):
             value = container.get(key)
             if isinstance(value, list):
                 return value
@@ -41,31 +46,47 @@ def get_field(log, *keys, default="N/A"):
     return default
 
 
+def destination_port(log):
+    """En los logs de Check Point 'service' es el puerto destino y 's_port' el puerto origen."""
+    service = str(log.get("service", ""))
+    if service.isdigit():
+        return service
+    return get_field(log, "dst_port", "port", "s_port", "Port")
+
+
 def main():
     writer = csv.writer(sys.stdout)
     writer.writerow(CSV_HEADER)
 
     total = 0
-    for line in sys.stdin:
+    seen = set()
+    for number, line in enumerate(sys.stdin, start=1):
         line = line.strip()
         if not line:
             continue
         try:
             page = json.loads(line)
         except json.JSONDecodeError:
-            continue
+            sys.exit(f"ERROR: la línea {number} de la respuesta de Infinity Events no es JSON válido.")
 
         for log in extract_logs(page):
+            if not isinstance(log, dict):
+                continue
+            # Las ventanas de búsqueda comparten el instante de corte: descartar repetidos.
+            key = json.dumps(log, sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
             writer.writerow([
                 get_field(log, "time", "Time"),
                 get_field(log, "productName", "product", "Cloud Service"),
-                get_field(log, "blade", "practice", "Blade/Practice Type"),
+                get_field(log, "blade", "practice", "product", "Blade/Practice Type"),
                 get_field(log, "action", "Action"),
                 get_field(log, "severity", "Severity"),
                 get_field(log, "src", "source", "Source"),
                 get_field(log, "dst", "destination", "Destination"),
-                get_field(log, "service", "Service"),
-                get_field(log, "s_port", "dst_port", "port", "Port"),
+                get_field(log, "service_id", "service", "Service"),
+                destination_port(log),
             ])
             total += 1
 

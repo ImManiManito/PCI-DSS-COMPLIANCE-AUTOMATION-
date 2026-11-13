@@ -7,9 +7,6 @@
   ansible.builtin.set_fact:
     fortigate_system_events_7d_end_date: "{{ now(fmt='%Y-%m-%d') }}"
     fortigate_system_events_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
-    fortigate_system_events_7d_evidence_dir: "{{ fortigate_system_events_7d_evidence_dir | default('/opt/pci-dss-evidence/fortigate/system_events_7_days') }}"
-    # Una sola sesión SSH por FortiGate y por ejecución (ver common/fortigate_collect_logs.sh)
-    fortigate_log_cache_dir: "{{ fortigate_log_cache_dir | default('/opt/pci-dss-evidence/fortigate/.cache') }}"
     fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 - name: FortiGate System Events 7 días - Definir subtipos de eventos a recolectar
@@ -25,60 +22,77 @@
         label: "User Events"
         filename: "Eventos_de_usuariosVPN.txt"
 
-- name: FortiGate System Events 7 días - Crear directorio de evidencias
-  ansible.builtin.file:
-    path: "{{ fortigate_system_events_7d_evidence_dir }}"
+# Nada se guarda en el servidor: logs y evidencia solo existen en un directorio
+# temporal privado (0700) que se elimina al terminar, se envíe o no el correo.
+- name: FortiGate System Events 7 días - Crear directorio temporal de trabajo
+  ansible.builtin.tempfile:
     state: directory
-    mode: "0750"
+    prefix: pci_fortigate_system_events_7d_
+  register: fortigate_system_events_7d_tmp
   delegate_to: localhost
 
-- name: FortiGate System Events 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
-  ansible.builtin.command:
-    argv:
-      - bash
-      - "{{ playbook_dir }}/../../roles/fortigate/system_events_7_days/scripts/fortigate_system_events_7_days.sh"
-      - "{{ hostvars[item.0].ansible_host }}"
-      - "{{ hostvars[item.0].ansible_port }}"
-      - "{{ hostvars[item.0].ansible_user }}"
-      - "{{ hostvars[item.0].ansible_ssh_private_key_file }}"
-      - "{{ item.0 }}"
-      - "{{ fortigate_run_id }}"
-      - "{{ fortigate_log_cache_dir }}"
-      - "{{ item.1.subtype }}"
-  loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
-  loop_control:
-    label: "{{ item.0 }} - {{ item.1.label }}"
-    index_var: fortigate_system_events_idx
-  register: fortigate_system_events_results
-  changed_when: false
-  delegate_to: localhost
+- name: FortiGate System Events 7 días - Recolectar, generar, enviar y eliminar evidencia
+  block:
+    # Logs crudos: una sola sesión SSH por FortiGate y por corrida (common/fortigate_collect_logs.sh).
+    # En cron se comparten entre playbooks en PCI_RUN_TMPDIR (lo borra scripts_cron/run_*.sh);
+    # en una ejecución manual quedan dentro del directorio temporal de este rol.
+    - name: FortiGate System Events 7 días - Definir rutas temporales
+      ansible.builtin.set_fact:
+        fortigate_system_events_7d_evidence_dir: "{{ fortigate_system_events_7d_tmp.path }}"
+        fortigate_log_cache_dir: "{{ lookup('ansible.builtin.env', 'PCI_RUN_TMPDIR') | default(fortigate_system_events_7d_tmp.path ~ '/cache', true) }}"
 
-- name: FortiGate System Events 7 días - Generar evidencia en archivos .txt
-  ansible.builtin.template:
-    src: "{{ playbook_dir }}/../../roles/fortigate/system_events_7_days/templates/system_events_report.txt.j2"
-    dest: "{{ fortigate_system_events_7d_evidence_dir }}/{{ item.1.filename }}"
-    mode: "0640"
-  loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
-  loop_control:
-    label: "{{ item.0 }} - {{ item.1.label }}"
-    index_var: fortigate_system_events_idx
-  vars:
-    fortigate_device: "{{ item.0 }}"
-    fortigate_event_subtype: "{{ item.1.subtype }}"
-    fortigate_event_label: "{{ item.1.label }}"
-    fortigate_raw_output: "{{ fortigate_system_events_results.results[fortigate_system_events_idx].stdout }}"
-  delegate_to: localhost
+    - name: FortiGate System Events 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/system_events_7_days/scripts/fortigate_system_events_7_days.sh"
+          - "{{ hostvars[item.0].ansible_host }}"
+          - "{{ hostvars[item.0].ansible_port }}"
+          - "{{ hostvars[item.0].ansible_user }}"
+          - "{{ hostvars[item.0].ansible_ssh_private_key_file }}"
+          - "{{ item.0 }}"
+          - "{{ fortigate_run_id }}"
+          - "{{ fortigate_log_cache_dir }}"
+          - "{{ item.1.subtype }}"
+      loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
+      loop_control:
+        label: "{{ item.0 }} - {{ item.1.label }}"
+      register: fortigate_system_events_results
+      changed_when: false
+      delegate_to: localhost
 
-- name: FortiGate System Events 7 días - Enviar evidencia por correo
-  ansible.builtin.command:
-    argv:
-      - bash
-      - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
-      - "{{ fortigate_mail_from }}"
-      - "{{ fortigate_mail_to }}"
-      - "FortiGate System Events 7 días - Evidencia PCI DSS ({{ fortigate_system_events_7d_start_date }} a {{ fortigate_system_events_7d_end_date }})"
-      - "{{ fortigate_system_events_7d_evidence_dir }}/Eventos_generales_de_seguridad.txt"
-      - "{{ fortigate_system_events_7d_evidence_dir }}/Fallos_de_autenticacionVPN.txt"
-      - "{{ fortigate_system_events_7d_evidence_dir }}/Eventos_de_usuariosVPN.txt"
-  changed_when: false
-  delegate_to: localhost
+    - name: FortiGate System Events 7 días - Generar evidencia en archivos .txt
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/fortigate/system_events_7_days/templates/system_events_report.txt.j2"
+        dest: "{{ fortigate_system_events_7d_evidence_dir }}/{{ item.1.filename }}"
+        mode: "0600"
+      loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
+      loop_control:
+        label: "{{ item.0 }} - {{ item.1.label }}"
+        index_var: fortigate_system_events_idx
+      vars:
+        fortigate_device: "{{ item.0 }}"
+        fortigate_event_subtype: "{{ item.1.subtype }}"
+        fortigate_event_label: "{{ item.1.label }}"
+        fortigate_raw_output: "{{ fortigate_system_events_results.results[fortigate_system_events_idx].stdout }}"
+      delegate_to: localhost
+
+    - name: FortiGate System Events 7 días - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+          - "{{ fortigate_mail_from }}"
+          - "{{ fortigate_mail_to }}"
+          - "FortiGate System Events 7 días - Evidencia PCI DSS ({{ fortigate_system_events_7d_start_date }} a {{ fortigate_system_events_7d_end_date }})"
+          - "{{ fortigate_system_events_7d_evidence_dir }}/Eventos_generales_de_seguridad.txt"
+          - "{{ fortigate_system_events_7d_evidence_dir }}/Fallos_de_autenticacionVPN.txt"
+          - "{{ fortigate_system_events_7d_evidence_dir }}/Eventos_de_usuariosVPN.txt"
+      changed_when: false
+      delegate_to: localhost
+  always:
+    - name: FortiGate System Events 7 días - Eliminar evidencia y logs del servidor
+      ansible.builtin.file:
+        path: "{{ fortigate_system_events_7d_tmp.path }}"
+        state: absent
+      delegate_to: localhost

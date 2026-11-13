@@ -9,18 +9,10 @@
 - name: FortiGate Password Changes - Definir variables de ejecución
   ansible.builtin.set_fact:
     fortigate_pwd_report_date: "{{ now(fmt='%Y-%m-%d') }}"
-    fortigate_pwd_evidence_dir: "{{ fortigate_pwd_evidence_dir | default('/opt/pci-dss-evidence/fortigate/password_changes') }}"
     fortigate_pwd_exclude_users: "{{ fortigate_pwd_exclude_users | default([]) }}"
     fortigate_pwd_length: "{{ fortigate_pwd_length | default(16) }}"
     fortigate_pwd_operator: "{{ fortigate_pwd_operator | default(lookup('ansible.builtin.env', 'USER') | default('ansible', true)) }}"
     fortigate_pwd_results: []
-
-- name: FortiGate Password Changes - Crear directorio de evidencias
-  ansible.builtin.file:
-    path: "{{ fortigate_pwd_evidence_dir }}"
-    state: directory
-    mode: "0750"
-  delegate_to: localhost
 
 - name: FortiGate Password Changes - Procesar cada FortiGate
   ansible.builtin.include_tasks: device.yml
@@ -46,39 +38,60 @@
   register: fortigate_pwd_logo
   delegate_to: localhost
 
-- name: FortiGate Password Changes - Generar reporte
-  ansible.builtin.template:
-    src: "{{ playbook_dir }}/../../roles/fortigate/password_changes/templates/password_changes_report.html.j2"
-    dest: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
-    mode: "0640"
-  vars:
-    fortigate_pwd_mailq: "{{ fortigate_pwd_mailq_cmd.stdout | default('') }}"
-    fortigate_pwd_logo_b64: "{{ fortigate_pwd_logo.content }}"
-    fortigate_pwd_datetime: "{{ now(fmt='%d/%m/%Y %H:%M:%S') }}"
+# El reporte solo existe en un directorio temporal privado (0700) mientras se envía:
+# en cuanto postfix acepta el correo (o si algo falla) se elimina del servidor.
+- name: FortiGate Password Changes - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_fortigate_password_changes_
+  register: fortigate_pwd_tmp
   delegate_to: localhost
 
-- name: FortiGate Password Changes - Validar que el reporte existe
-  ansible.builtin.stat:
-    path: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
-  register: fortigate_pwd_report_stat
-  delegate_to: localhost
+- name: FortiGate Password Changes - Generar, enviar y eliminar reporte
+  block:
+    - name: FortiGate Password Changes - Definir ruta temporal del reporte
+      ansible.builtin.set_fact:
+        fortigate_pwd_evidence_dir: "{{ fortigate_pwd_tmp.path }}"
 
-- name: FortiGate Password Changes - Asegurar reporte generado
-  ansible.builtin.assert:
-    that: fortigate_pwd_report_stat.stat.exists and fortigate_pwd_report_stat.stat.size > 0
-    fail_msg: "No se generó el reporte HTML"
+    - name: FortiGate Password Changes - Generar reporte
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/fortigate/password_changes/templates/password_changes_report.html.j2"
+        dest: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
+        mode: "0600"
+      vars:
+        fortigate_pwd_mailq: "{{ fortigate_pwd_mailq_cmd.stdout | default('') }}"
+        fortigate_pwd_logo_b64: "{{ fortigate_pwd_logo.content }}"
+        fortigate_pwd_datetime: "{{ now(fmt='%d/%m/%Y %H:%M:%S') }}"
+      delegate_to: localhost
 
-- name: FortiGate Password Changes - Enviar reporte por correo
-  ansible.builtin.command:
-    argv:
-      - bash
-      - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
-      - "{{ fortigate_mail_from }}"
-      - "{{ fortigate_mail_to }}"
-      - "FortiGate Password Changes - Evidencia PCI DSS ({{ fortigate_pwd_report_date }})"
-      - "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
-  changed_when: false
-  delegate_to: localhost
+    - name: FortiGate Password Changes - Validar que el reporte existe
+      ansible.builtin.stat:
+        path: "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
+      register: fortigate_pwd_report_stat
+      delegate_to: localhost
+
+    - name: FortiGate Password Changes - Asegurar reporte generado
+      ansible.builtin.assert:
+        that: fortigate_pwd_report_stat.stat.exists and fortigate_pwd_report_stat.stat.size > 0
+        fail_msg: "No se generó el reporte HTML"
+
+    - name: FortiGate Password Changes - Enviar reporte por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+          - "{{ fortigate_mail_from }}"
+          - "{{ fortigate_mail_to }}"
+          - "FortiGate Password Changes - Evidencia PCI DSS ({{ fortigate_pwd_report_date }})"
+          - "{{ fortigate_pwd_evidence_dir }}/Cambio_de_contrasenas_VPN_{{ fortigate_pwd_report_date }}.html"
+      changed_when: false
+      delegate_to: localhost
+  always:
+    - name: FortiGate Password Changes - Eliminar reporte del servidor
+      ansible.builtin.file:
+        path: "{{ fortigate_pwd_tmp.path }}"
+        state: absent
+      delegate_to: localhost
 
 - name: FortiGate Password Changes - Resumen final
   ansible.builtin.debug:
@@ -93,4 +106,4 @@
     that:
       - fortigate_pwd_results | selectattr('changed', 'equalto', 'FAILED') | list | length == 0
       - fortigate_pwd_results | selectattr('mail', 'equalto', 'FAILED') | list | length == 0
-    fail_msg: "Hubo usuarios con cambio o correo fallido; revise el reporte HTML."
+    fail_msg: "Hubo usuarios con cambio o correo fallido; revise el reporte HTML enviado por correo."

@@ -3,47 +3,69 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
+# Fechas en UTC (las horas llevan sufijo Z). El rango empieza 7 días atrás a las 00:00
+# para que se traslape con la corrida semanal anterior: con "-6 días" quedaban sin
+# cubrir las horas entre el final de una corrida y la medianoche de ese mismo día.
 - name: Checkpoint Events IPS 7 días - Definir rango de fechas (últimos 7 días)
   ansible.builtin.set_fact:
-    checkpoint_events_ips_7d_end_date: "{{ now(fmt='%Y-%m-%d') }}"
-    checkpoint_events_ips_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
-    checkpoint_events_ips_7d_start_time: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}T00:00:00Z"
-    checkpoint_events_ips_7d_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59Z"
-    checkpoint_events_ips_7d_evidence_dir: "{{ checkpoint_events_ips_7d_evidence_dir | default('/opt/pci-dss-evidence/checkpoint/events_ips_7_days') }}"
+    checkpoint_events_ips_7d_end_date: "{{ now(utc=true, fmt='%Y-%m-%d') }}"
+    checkpoint_events_ips_7d_start_date: "{{ lookup('pipe', 'date -u -d \"-7 days\" +%Y-%m-%d') }}"
 
-- name: Checkpoint Events IPS 7 días - Crear directorio de evidencias
-  ansible.builtin.file:
-    path: "{{ checkpoint_events_ips_7d_evidence_dir }}"
+- name: Checkpoint Events IPS 7 días - Definir horas de inicio y fin del rango
+  ansible.builtin.set_fact:
+    checkpoint_events_ips_7d_start_time: "{{ checkpoint_events_ips_7d_start_date }}T00:00:00Z"
+    checkpoint_events_ips_7d_end_time: "{{ checkpoint_events_ips_7d_end_date }}T23:59:59Z"
+
+# La evidencia solo existe en un directorio temporal privado (0700) mientras se envía:
+# en cuanto postfix acepta el correo (o si algo falla) se elimina del servidor.
+- name: Checkpoint Events IPS 7 días - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
     state: directory
-    mode: "0750"
+    prefix: pci_checkpoint_events_ips_7d_
+  register: checkpoint_events_ips_7d_tmp
   delegate_to: localhost
 
-- name: Checkpoint Events IPS 7 días - Consultar Infinity Events y generar evidencia CSV
-  ansible.builtin.shell:
-    cmd: >
-      bash "{{ playbook_dir }}/../../roles/checkpoint/events_ips_7_days/scripts/checkpoint_events_ips_7_days.sh"
-      "{{ checkpoint_infinity_auth_url }}"
-      "{{ checkpoint_infinity_events_url }}"
-      "{{ checkpoint_events_ips_7d_start_time }}"
-      "{{ checkpoint_events_ips_7d_end_time }}"
-      | python3 "{{ playbook_dir }}/../../roles/checkpoint/events_ips_7_days/scripts/parse_events_ips.py"
-      > "{{ checkpoint_events_ips_7d_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb_7_dias.csv"
-  environment:
-    CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
-    CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
-  register: checkpoint_events_ips_7d_result
-  changed_when: false
-  no_log: true
-  delegate_to: localhost
+- name: Checkpoint Events IPS 7 días - Generar, enviar y eliminar evidencia
+  block:
+    - name: Checkpoint Events IPS 7 días - Definir ruta temporal de la evidencia
+      ansible.builtin.set_fact:
+        checkpoint_events_ips_7d_evidence_dir: "{{ checkpoint_events_ips_7d_tmp.path }}"
 
-- name: Checkpoint Events IPS 7 días - Enviar evidencia por correo
-  ansible.builtin.command:
-    argv:
-      - bash
-      - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
-      - "{{ checkpoint_mail_from }}"
-      - "{{ checkpoint_mail_to }}"
-      - "Checkpoint Events IPS 7 días - Evidencia PCI DSS ({{ checkpoint_events_ips_7d_start_date }} a {{ checkpoint_events_ips_7d_end_date }})"
-      - "{{ checkpoint_events_ips_7d_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb_7_dias.csv"
-  changed_when: false
-  delegate_to: localhost
+    # pipefail: si falla la consulta a la API la tarea falla, en vez de enviar un CSV vacío.
+    - name: Checkpoint Events IPS 7 días - Consultar Infinity Events y generar evidencia CSV
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: >
+          set -o pipefail;
+          bash "{{ playbook_dir }}/../../roles/checkpoint/events_ips_7_days/scripts/checkpoint_events_ips_7_days.sh"
+          "{{ checkpoint_infinity_auth_url }}"
+          "{{ checkpoint_infinity_events_url }}"
+          "{{ checkpoint_events_ips_7d_start_time }}"
+          "{{ checkpoint_events_ips_7d_end_time }}"
+          | python3 "{{ playbook_dir }}/../../roles/checkpoint/events_ips_7_days/scripts/parse_events_ips.py"
+          > "{{ checkpoint_events_ips_7d_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb_7_dias.csv"
+      environment:
+        CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
+        CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
+      register: checkpoint_events_ips_7d_result
+      changed_when: false
+      no_log: true
+      delegate_to: localhost
+
+    - name: Checkpoint Events IPS 7 días - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
+          - "{{ checkpoint_mail_from }}"
+          - "{{ checkpoint_mail_to }}"
+          - "Checkpoint Events IPS 7 días - Evidencia PCI DSS ({{ checkpoint_events_ips_7d_start_date }} a {{ checkpoint_events_ips_7d_end_date }})"
+          - "{{ checkpoint_events_ips_7d_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb_7_dias.csv"
+      changed_when: false
+      delegate_to: localhost
+  always:
+    - name: Checkpoint Events IPS 7 días - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ checkpoint_events_ips_7d_tmp.path }}"
+        state: absent
+      delegate_to: localhost
