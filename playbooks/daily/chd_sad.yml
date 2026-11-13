@@ -1,4 +1,6 @@
 ---
+# Cada herramienta corre de forma independiente: si una falla, las demás siguen y
+# envían su evidencia; al final el playbook termina con error indicando cuál falló.
 - name: CHD SAD - Daily Security Activities
   hosts: localhost
   gather_facts: false
@@ -6,10 +8,33 @@
   tasks:
 
     - name: Execute FortiGate - System Events
-      include_tasks: ../../roles/fortigate/system_events/tasks/main.yml
+      block:
+        - name: FortiGate - System Events
+          ansible.builtin.include_tasks: ../../roles/fortigate/system_events/tasks/main.yml
+      rescue:
+        - name: Registrar falla de FortiGate - System Events (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - System Events'] }}"
 
     - name: Execute Checkpoint - Events IPS
-      include_tasks: ../../roles/checkpoint/events_ips/tasks/main.yml
+      block:
+        - name: Checkpoint - Events IPS
+          ansible.builtin.include_tasks: ../../roles/checkpoint/events_ips/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Checkpoint - Events IPS (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Events IPS'] }}"
 
     - name: Execute Wazuh - CHD SAD Review
-      include_tasks: ../../roles/wazuh/chd_sad_review/tasks/main.yml
+      block:
+        - name: Wazuh - CHD SAD Review
+          ansible.builtin.include_tasks: ../../roles/wazuh/chd_sad_review/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Wazuh - CHD SAD Review
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - CHD SAD Review'] }}"
+
+    - name: Verificar que todas las herramientas enviaron su evidencia
+      ansible.builtin.fail:
+        msg: "No se envió la evidencia de: {{ pci_failed_sections | join(', ') }}. Revise los errores anteriores."
+      when: pci_failed_sections | default([]) | length > 0

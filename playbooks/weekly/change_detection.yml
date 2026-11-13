@@ -1,15 +1,40 @@
 ---
-- name: Required Logs - Weekly Security Activities
+# Cada herramienta corre de forma independiente: si una falla, las demás siguen y
+# envían su evidencia; al final el playbook termina con error indicando cuál falló.
+- name: Change Detection - Weekly Security Activities
   hosts: localhost
   gather_facts: false
 
   tasks:
 
     - name: Execute FortiGate - System Events (últimos 7 días)
-      include_tasks: ../../roles/fortigate/system_events_7_days/tasks/main.yml
+      block:
+        - name: FortiGate - System Events (últimos 7 días)
+          ansible.builtin.include_tasks: ../../roles/fortigate/system_events_7_days/tasks/main.yml
+      rescue:
+        - name: Registrar falla de FortiGate - System Events 7 días (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - System Events 7 días'] }}"
 
     - name: Execute Checkpoint - Events IPS (últimos 7 días)
-      include_tasks: ../../roles/checkpoint/events_ips_7_days/tasks/main.yml
+      block:
+        - name: Checkpoint - Events IPS (últimos 7 días)
+          ansible.builtin.include_tasks: ../../roles/checkpoint/events_ips_7_days/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Checkpoint - Events IPS 7 días (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Events IPS 7 días'] }}"
 
     - name: Execute Wazuh - CHD SAD Review (últimos 7 días)
-      include_tasks: ../../roles/wazuh/chd_sad_review_7_days/tasks/main.yml
+      block:
+        - name: Wazuh - CHD SAD Review (últimos 7 días)
+          ansible.builtin.include_tasks: ../../roles/wazuh/chd_sad_review_7_days/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Wazuh - CHD SAD Review 7 días
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - CHD SAD Review 7 días'] }}"
+
+    - name: Verificar que todas las herramientas enviaron su evidencia
+      ansible.builtin.fail:
+        msg: "No se envió la evidencia de: {{ pci_failed_sections | join(', ') }}. Revise los errores anteriores."
+      when: pci_failed_sections | default([]) | length > 0

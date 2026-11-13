@@ -1,4 +1,6 @@
 ---
+# Cada herramienta corre de forma independiente: si una falla, las demás siguen y
+# envían su evidencia; al final el playbook termina con error indicando cuál falló.
 - name: Required Logs - Weekly Security Activities
   hosts: localhost
   gather_facts: false
@@ -6,7 +8,24 @@
   tasks:
 
     - name: Execute FortiGate - Security Events and Forward Traffic (últimos 7 días)
-      include_tasks: ../../roles/fortigate/security_events_and_forward_traffic/tasks/main.yml
+      block:
+        - name: FortiGate - Security Events and Forward Traffic (últimos 7 días)
+          ansible.builtin.include_tasks: ../../roles/fortigate/security_events_and_forward_traffic/tasks/main.yml
+      rescue:
+        - name: Registrar falla de FortiGate - Security Events and Forward Traffic (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - Security Events and Forward Traffic'] }}"
 
     - name: Execute Checkpoint - Block-Acceptance (últimos 7 días)
-      include_tasks: "../../roles/checkpoint/block-acceptance/tasks/main.yml"
+      block:
+        - name: Checkpoint - Block-Acceptance (últimos 7 días)
+          ansible.builtin.include_tasks: "../../roles/checkpoint/block-acceptance/tasks/main.yml"
+      rescue:
+        - name: Registrar falla de Checkpoint - Block-Acceptance
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Block-Acceptance'] }}"
+
+    - name: Verificar que todas las herramientas enviaron su evidencia
+      ansible.builtin.fail:
+        msg: "No se envió la evidencia de: {{ pci_failed_sections | join(', ') }}. Revise los errores anteriores."
+      when: pci_failed_sections | default([]) | length > 0
