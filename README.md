@@ -1,182 +1,106 @@
 *[Leer este documento en español](README.es.md)*
 
-# PCI-DSS-COMPLIANCE-AUTOMATION-
+# PCI DSS Compliance Automation
 
-PCI-DSS-COMPLIANCE-AUTOMATION- is an automation project designed to streamline the execution and monitoring of activities related to the PCI DSS (Payment Card Industry Data Security Standard).
+This repository contains an Ansible-based automation framework for recurring PCI DSS security review activities, evidence collection, and operational reporting. The project is built around a modular design: each control is organized into a playbook, one or more platform-specific roles, and supporting scripts/templates used to gather and normalize information from FortiGate, Check Point, and Wazuh.
 
-The project uses Ansible as its primary automation platform and integrates several security technologies, including FortiGate, Check Point, and Wazuh, to collect security information, process events, and generate standardized compliance evidence.
+## Current project state
 
-Activities are organized according to their execution frequency:
+The project is in an active but incremental implementation stage. The repository includes the main automation flow and the scheduled execution layer. The current state is:
 
-Daily -- Weekly -- Monthly -- Quarterly
+- Daily controls: implemented and operational.
+- Weekly controls: implemented and scheduled.
+- Monthly controls: defined in the repository and pending completion or validation.
+- Quarterly controls: defined, with active functionality for some controls and others still pending.
 
-The project architecture is designed to keep each activity organized and independent by separating execution playbooks, Ansible tasks, and the scripts used to collect and process security information.
+## Repository structure
 
-playbooks/
-    Activities organized by execution frequency (daily, weekly, monthly, quarterly).
+```text
+.
+├── ansible.cfg                # Ansible global configuration
+├── inventory/
+│   └── hosts.ini             # Inventory groups for FortiGate, Check Point, and Wazuh
+├── playbooks/
+│   ├── daily/
+│   ├── weekly/
+│   ├── monthly/
+│   └── quarterly/
+├── roles/
+│   ├── fortigate/
+│   ├── checkpoint/
+│   └── wazuh/
+├── scripts_cron/
+│   └── *.sh                  # Entry points for scheduled execution
+├── docs/
+│   ├── architecture.md
+│   └── architecture.es.md
+├── README.md
+├── README.es.md
+└── vars/
+```
 
-roles/
-    Platform-specific automation (fortigate/, checkpoint/, wazuh/). Each activity role typically contains:
-    - scripts/ -- collection and parsing scripts.
-    - tasks/ -- Ansible task definitions.
-    - templates/ -- Jinja2 report templates.
-    - common/ -- helpers shared across the platform's activities (for example, SSH execution and mail sending).
-    - (project root) vars/vault.yml -- single Ansible Vault file for all roles (credentials, API endpoints, mail settings, sudo password).
+## Control coverage and status
 
-inventory/
-    Infrastructure inventory.
-
-scripts_cron/
-    Scheduled and automated executions.
-
-The project also uses Ansible Vault to protect credentials, API keys, and other sensitive information, ensuring that secrets are not stored directly in the source code.
-
-## Deployment architecture
-
-Ideally, Ansible should run on a dedicated virtual machine or asset separate from the SIEM. For this project, due to current infrastructure constraints, Ansible runs on the same asset that hosts the SIEM (Wazuh). See [docs/architecture.md](docs/architecture.md) (also available [in Spanish](docs/architecture.es.md)) for details and the security considerations that follow from this decision.
-
-The inventory (`inventory/hosts.ini`) currently defines three groups: `fortigates` (remote, over SSH), `checkpoint` (local connection), and `wazuh` (local connection).
-
-The main goal of this initiative is to reduce manual processes, improve the consistency and reliability of security activities, and facilitate the generation of evidence for PCI DSS compliance reviews and audits.
-
-## PCI DSS compliance mapping
-
-The table below maps each activity (playbook) to the PCI DSS requirements it satisfies and the frequency at which it runs.
-
-| PCI DSS requirements | Activity (playbook) | Frequency | Status |
+| PCI DSS scope | Activity | Frequency | Status |
 |---|---|---|---|
 | 10.2.4, 10.2.7, 10.4.1.a, 10.4.1.b, 10.6.1 | CHD SAD (`playbooks/daily/chd_sad.yml`) | Daily | Implemented |
 | 8.6.3.a, 8.6.3.b, 8.6.3.c | Compromised Passwords (`playbooks/daily/compromised_passwords.yml`) | Daily | Implemented |
 | 10.7.1.a, 10.7.1.b, 10.7.2.a, 10.7.2.b, 10.7.3.a, 10.7.3.b | Infrastructure Failures (`playbooks/daily/infrastructure_failures.yml`) | Daily | Implemented |
 | 10.2.4, 10.2.7, 10.6.1, 11.5.2.a, 11.5.2.b | Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Implemented |
 | 10.4.2.a, 10.4.2.b | Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | Implemented |
-| 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Pending |
-| 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Pending |
-| 10.4.2.1.a, 10.4.2.1.b | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Pending |
-| 7.2.4.a, 7.2.4.b | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Pending |
-| 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Pending |
+| 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Defined / pending |
+| 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Defined / pending |
+| 10.4.2.1.a, 10.4.2.1.b | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Defined / pending |
+| 7.2.4.a, 7.2.4.b | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Defined / pending |
+| 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Defined / pending |
 | 8.3.9, 8.3.10.1 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Implemented |
-| 12.3.3 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Pending |
-| 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Pending |
+| 12.3.3 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Defined / pending |
+| 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Defined / pending |
 
-`scripts_cron/` contains the scheduled execution scripts for the activities above. See [scripts_cron/README.md](scripts_cron/README.md) for usage and cron examples.
+## Platform components
 
-### Evidence collection and delivery
+The automation is organized by technology:
 
-- The daily CHD/SAD review and weekly change-detection playbooks collect Wazuh alerts matching PCI DSS controls 10.6.1 (security-impact events), 10.2.4 (authentication failures), and 10.2.7 (object modifications). Each control produces a separate CSV; the weekly evidence covers the last seven days.
-- Daily FortiGate system-event evidence covers a rolling 24-hour window in America/Mexico_City time. Queries include the current and previous UTC dates; results are filtered to the exact window, deduplicated, sorted newest first, and displayed in CDMX time.
-- The Check Point and Wazuh mail helpers send evidence as MIME attachments through the local Postfix `sendmail` command. Their host requires `sendmail` and `python3`; the helpers no longer rely on a particular `mail` package variant.
+- `roles/fortigate/`: collection and parsing of logs and events from FortiGate appliances, including configuration changes, system events, traffic and web filter review, and password-change workflows.
+- `roles/checkpoint/`: collection and parsing of Check Point events such as authentication failures, block acceptance, and IPS-related activity.
+- `roles/wazuh/`: local Wazuh-based review of security events and alert correlation for CHD/SAD analyses and weekly evidence collection.
 
-### Requirement detail
+Each role generally contains `scripts/`, `tasks/`, and `templates/` folders plus helper logic for mail delivery and SSH remote execution when required.
 
-**CHD SAD — 10.4.1.a / 10.4.1.b**
-> The following audit logs are reviewed at least once daily:
-> - All security events.
-> - Logs of all system components that store, process, or transmit CHD and/or SAD.
-> - Logs of all critical system components.
-> - Logs of all servers and system components that perform security functions (for example, network security controls, intrusion-detection/intrusion-prevention systems (IDS/IPS), authentication servers).
->
-> Additionally, the Wazuh `chd_sad_review` role collects alerts from `alerts.json` for controls 10.6.1 (security-impact events), 10.2.4 (authentication failures), and 10.2.7 (object modifications). It creates one CSV per control and includes all three files in the daily evidence email.
+## Deployment architecture
 
-**Compromised Passwords — 8.6.3.a / 8.6.3.b / 8.6.3.c**
-> Passwords/passphrases for any application and system accounts are protected against misuse as follows:
-> - System and application accounts are changed periodically (at the frequency defined in the entity's targeted risk analysis, performed according to all elements specified in Requirement 12.3.1) and upon suspicion or confirmation of compromise.
-> - Passwords/passphrases are constructed with sufficient complexity appropriate for how frequently the entity changes the passwords/passphrases.
+The project currently assumes that Ansible executes on the same host as the SIEM, specifically Wazuh. This is an infrastructure constraint rather than the target ideal state. For the technical reasoning and the security implications of this design, see [docs/architecture.md](docs/architecture.md).
 
-**Infrastructure Failures — 10.7.1.a / 10.7.1.b, 10.7.2.a / 10.7.2.b, 10.7.3.a / 10.7.3.b**
+The inventory file (`inventory/hosts.ini`) defines the following groups:
 
-*10.7.1.a / 10.7.1.b (additional requirement for service providers only):*
-> Failures of critical security control systems are detected, alerted, and addressed promptly, including but not limited to failure of the following critical security control systems:
-> - Network security controls
-> - IDS/IPS
-> - FIM
-> - Anti-malware solutions
-> - Physical access controls
-> - Logical access controls
-> - Audit logging mechanisms
-> - Segmentation controls (if used)
+- `fortigates`: remote connection via SSH.
+- `checkpoint`: local execution.
+- `wazuh`: local execution.
 
-*10.7.2.a / 10.7.2.b:*
-> Failures of critical security control systems are detected, alerted, and addressed promptly, including but not limited to failure of the following critical security control systems:
-> - Network security controls
-> - IDS/IPS
-> - Change-detection mechanisms
-> - Anti-malware solutions
-> - Physical access controls
-> - Logical access controls
-> - Audit logging mechanisms
-> - Segmentation controls (if used)
-> - Audit log review mechanisms
-> - Automated security testing tools (if used)
+## Secret handling and automation execution
 
-*10.7.3.a / 10.7.3.b:*
-> Failures of any critical security control systems are responded to promptly, including but not limited to:
-> - Restoring security functions.
-> - Identifying and documenting the duration (date and time from start to end) of the security failure.
-> - Identifying and documenting the cause(s) of failure and documenting required remediation.
-> - Identifying and addressing any security issues that arose during the failure.
-> - Determining whether further actions are required as a result of the security failure.
-> - Implementing controls to prevent the cause of the failure from reoccurring.
-> - Resuming monitoring of security controls.
+The project uses Ansible Vault to protect credentials, API endpoints, and operational settings. Sensitive values are not kept in plain text in the source tree. The default configuration expects the vault password to be stored in `~/.ansible/.vault_pass` and reads it automatically from `ansible.cfg`.
 
-**Required Logs — 10.4.2.a / 10.4.2.b**
-> 10.4.2.a: Examine security policies and procedures to verify that processes are defined for reviewing logs of all other system components periodically.
-> 10.4.2.b: Examine documented results of log reviews and interview personnel to verify that log reviews are performed periodically.
+Scheduled execution is supported through the scripts in `scripts_cron/`:
 
-**Change Detection — 11.5.2.a / 11.5.2.b**
-> A change-detection mechanism (for example, file integrity monitoring tools) is deployed as follows:
-> - To alert personnel to unauthorized modification (including changes, additions, and deletions) of critical files.
-> - To perform critical file comparisons at least once weekly.
->
-> Additionally, the Wazuh `chd_sad_review_7_days` role collects the last seven days of alerts from `alerts.json` for controls 10.6.1 (security-impact events), 10.2.4 (authentication failures), and 10.2.7 (object modifications). It creates one CSV per control and includes all three files in the weekly evidence email.
+- `run_daily.sh`
+- `run_weekly.sh`
+- `run_monthly.sh`
+- `run_quarterly.sh`
 
-**Privileged Accounts — 7.2.4.a / 7.2.4.b**
-> All user accounts and related access privileges, including third-party/vendor accounts, are reviewed as follows:
-> - At least once every six months.
-> - To ensure user accounts and access remain appropriate based on job function.
-> - Any inappropriate access is addressed.
-> - Management acknowledges that access remains appropriate.
+These scripts are designed to execute the corresponding playbooks according to the configured frequency and to integrate with cron-based scheduling.
 
-**Access Logs — 7.2.5.1.a / 7.2.5.1.b / 7.2.5.1.c**
-> All application and system accounts and related access privileges are reviewed as follows:
-> - Periodically (at the frequency defined in the entity's targeted risk analysis, performed according to all elements specified in Requirement 12.3.1).
-> - The application/system access remains appropriate for the function being performed.
-> - Any inappropriate access is addressed.
-> - Management acknowledges that access remains appropriate.
+See [scripts_cron/README.md](scripts_cron/README.md) for examples and operational details.
 
-**Account Activity — 8.2.6**
-> Inactive user accounts are removed or disabled within 90 days of inactivity.
+## Example usage
 
-**Available Logs — 10.5.1.a / 10.5.1.b / 10.5.1.c**
-> Retain audit log history for at least 12 months, with at least the most recent three months immediately available for analysis.
+```bash
+ansible-playbook playbooks/daily/chd_sad.yml
+ansible-playbook playbooks/weekly/change_detection.yml
+./scripts_cron/run_daily.sh
+./scripts_cron/run_weekly.sh
+```
 
-**Review of Suites and Protocols — 12.3.3**
-> Cryptographic cipher suites and protocols in use are documented every 12 months and reviewed at least once every 3 months, including at least the following:
-> - An up-to-date inventory of all cryptographic cipher suites and protocols in use, including purpose and where used.
-> - Active monitoring of industry trends regarding continued viability of all cryptographic cipher suites and protocols in use.
-> - A documented strategy to respond to anticipated changes in cryptographic vulnerabilities.
+## Scope note
 
-**Periodic Evaluations — 10.4.2.1.a / 10.4.2.1.b**
-> The frequency of periodic log reviews for system components identified as not being at risk for evasion (not defined in Requirement 10.4.1) is defined in the entity's targeted risk analysis, which is performed according to all elements specified in Requirement 12.3.1.
-
-**Password Changes — 8.3.9 / 8.3.10.1**
-> 8.3.9: If passwords/passphrases are used as the only authentication factor for user access (i.e., in any single-factor authentication implementation), then either:
-> - Passwords/passphrases are changed at least once every 90 days,
-> - The security posture of accounts is dynamically analyzed, and real-time access to resources is automatically determined accordingly.
->
-> 8.3.10.1 (additional requirement for service providers only): If passwords/passphrases are used as the only authentication factor for customer user access (i.e., in any single-factor authentication implementation), then either:
-> - Passwords/passphrases are changed at least once every 90 days,
-> - The security posture of accounts is dynamically analyzed, and real-time access to resources is automatically determined accordingly.
-
-**Wireless Access Points — 11.2.1.a / 11.2.1.b / 11.2.1.c / 11.2.1.d**
-> Authorized and unauthorized wireless access points are managed as follows:
-> - The presence of wireless (Wi-Fi) access points is tested for.
-> - All authorized and unauthorized wireless access points are detected and identified.
-> - Testing, detection, and identification occurs at least once every three months.
-> - If automated monitoring is used, personnel are notified via generated alerts.
-
-The project is currently in a phased implementation stage, with activities distributed according to their execution frequency and their relationship to PCI DSS controls. The activities implemented to date reduce reliance on manual processes and establish a more consistent approach to the review, monitoring, and generation of security evidence.
-
-Looking ahead, the initiative aims to expand the scope of outstanding activities, strengthen process standardization, and ensure continuous evolution in line with the organization's security and compliance needs. Technical documentation and specific implementation details are kept separate from this document to facilitate consultation and maintenance.
-
-It should be clarified that this project focuses only on specific points of the PCI DSS audit.
+This repository focuses on specific PCI DSS security review controls and evidence collection workflows. It is not a full enterprise compliance platform, but a structured and repeatable automation baseline for the controls currently implemented or under development.
