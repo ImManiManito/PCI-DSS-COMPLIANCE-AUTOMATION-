@@ -3,11 +3,11 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: Checkpoint Events IPS - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
+# Día CDMX anterior completo (00:00:00 a 23:59:59), en UTC para la API.
+# Ver roles/common/scripts/report_range.sh.
+- name: Checkpoint Events IPS - Definir rango del reporte (ayer, 00:00:00 a 23:59:59 CDMX)
   ansible.builtin.set_fact:
-    checkpoint_events_ips_report_date: "{{ now(fmt='%Y-%m-%d') }}"
-    checkpoint_events_ips_start_time: "{{ now(fmt='%Y-%m-%d') }}T00:00:00Z"
-    checkpoint_events_ips_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59Z"
+    checkpoint_events_ips_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 1') | from_json }}"
 
 # La evidencia solo existe en un directorio temporal privado (0700) mientras se envía:
 # en cuanto postfix acepta el correo (o si algo falla) se elimina del servidor.
@@ -25,16 +25,19 @@
         checkpoint_events_ips_evidence_dir: "{{ checkpoint_events_ips_tmp.path }}"
 
     # pipefail: si falla la consulta a la API la tarea falla, en vez de enviar un CSV vacío.
+    # no_log oculta todo el resultado, también el motivo del error; por eso esta tarea no
+    # falla sola y la siguiente muestra solo stderr (los scripts nunca imprimen credenciales).
+    # timeout: la consulta nunca se queda colgada; si se agota termina con código 124.
     - name: Checkpoint Events IPS - Consultar Infinity Events y generar evidencia CSV
       ansible.builtin.shell:
         executable: /bin/bash
         cmd: >
           set -o pipefail;
-          bash "{{ playbook_dir }}/../../roles/checkpoint/events_ips/scripts/checkpoint_events_ips.sh"
+          timeout -k 15 1800 bash "{{ playbook_dir }}/../../roles/checkpoint/events_ips/scripts/checkpoint_events_ips.sh"
           "{{ checkpoint_infinity_auth_url }}"
           "{{ checkpoint_infinity_events_url }}"
-          "{{ checkpoint_events_ips_start_time }}"
-          "{{ checkpoint_events_ips_end_time }}"
+          "{{ checkpoint_events_ips_range.start_utc }}"
+          "{{ checkpoint_events_ips_range.end_utc }}"
           | python3 "{{ playbook_dir }}/../../roles/checkpoint/events_ips/scripts/parse_events_ips.py"
           > "{{ checkpoint_events_ips_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb.csv"
       environment:
@@ -42,8 +45,19 @@
         CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
       register: checkpoint_events_ips_result
       changed_when: false
+      failed_when: false
       no_log: true
       delegate_to: localhost
+
+    - name: Checkpoint Events IPS - Verificar la consulta a Infinity Events
+      ansible.builtin.fail:
+        msg: "{{ (checkpoint_events_ips_result.stderr_lines | default(['La consulta falló sin mensaje de error.'])) + (['Tiempo máximo agotado (1800 s): la API de Check Point no respondió a tiempo.'] if checkpoint_events_ips_result.rc | default(0) == 124 else []) }}"
+      when: checkpoint_events_ips_result.rc | default(1) != 0
+
+    - name: Checkpoint Events IPS - Mostrar avisos de la consulta
+      ansible.builtin.debug:
+        var: checkpoint_events_ips_result.stderr_lines
+      when: checkpoint_events_ips_result.stderr_lines | default([]) | length > 0
 
     - name: Checkpoint Events IPS - Enviar evidencia por correo
       ansible.builtin.command:
@@ -52,7 +66,7 @@
           - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
           - "{{ checkpoint_mail_from }}"
           - "{{ checkpoint_mail_to }}"
-          - "Checkpoint Events IPS - Evidencia PCI DSS ({{ checkpoint_events_ips_report_date }})"
+          - "Checkpoint Events IPS - Evidencia PCI DSS ({{ checkpoint_events_ips_range.end_date }}, 00:00 a 23:59 CDMX)"
           - "{{ checkpoint_events_ips_evidence_dir }}/Eventos IPS_Anti-bot_Anti-virus_FiltroWeb.csv"
       changed_when: false
       delegate_to: localhost

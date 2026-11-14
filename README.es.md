@@ -26,6 +26,7 @@ El proyecto se encuentra en una etapa activa pero incremental de implementación
 │   ├── monthly/
 │   └── quarterly/
 ├── roles/
+│   ├── common/               # Rango de fechas de los reportes y hora en CDMX
 │   ├── fortigate/
 │   ├── checkpoint/
 │   └── wazuh/
@@ -66,6 +67,21 @@ La automatización está organizada por tecnología:
 - `roles/wazuh/`: revisión local de Wazuh para correlación de alertas y análisis CHD/SAD, así como evidencia semanal.
 
 Cada rol generalmente incluye carpetas `scripts/`, `tasks/` y `templates/`, además de lógica auxiliar para envío de correos y ejecución remota por SSH cuando es necesario.
+
+## Rangos de fechas de los reportes
+
+Todos los reportes usan días completos en hora de CDMX, calculados en un solo lugar (`roles/common/scripts/report_range.sh`):
+
+- **Diarios**: el día anterior, de 00:00:00 a 23:59:59 CDMX.
+- **Semanales**: la última semana completa, de lunes 00:00:00 a domingo 23:59:59 CDMX (p. ej. lunes 16 a domingo 22 de noviembre). Mientras es domingo, ese domingo no ha terminado, así que el semanal debe correr después de la medianoche del domingo (lunes temprano) para incluirlo.
+
+Los rangos solo incluyen días ya terminados y las corridas consecutivas quedan contiguas, sin huecos ni traslapes. El servidor está en UTC y cada activo registra la hora a su manera, así que cada uno recorta por la hora exacta del evento:
+
+- **FortiGate**: se consultan las fechas locales del equipo que toca el rango y el parser recorta con `eventtime` (epoch), sin depender de la zona horaria del equipo.
+- **Check Point**: el rango se envía a la API en UTC.
+- **Wazuh**: se leen el `alerts.json` del día y los archivos archivados (`AAAA/Mes/ossec-alerts-DD.json.gz`) y se recorta por el `timestamp` de cada alerta, respetando su offset.
+
+La evidencia muestra la hora de cada evento en CDMX, del más reciente al más antiguo.
 
 ## Arquitectura de despliegue
 

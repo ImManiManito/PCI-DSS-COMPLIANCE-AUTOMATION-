@@ -8,10 +8,15 @@ válido, para no generar evidencia incompleta.
 
 import csv
 import json
+import os
 import sys
 
+sys.dont_write_bytecode = True  # no dejar __pycache__ en el servidor
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "common", "scripts"))
+from cdmx_time import event_epoch, to_cdmx  # noqa: E402
+
 CSV_HEADER = [
-    "Time",
+    "Time (CDMX)",
     "Cloud Service",
     "Blade/Practice Type",
     "Action",
@@ -58,6 +63,8 @@ def main():
     writer = csv.writer(sys.stdout)
     writer.writerow(CSV_HEADER)
 
+    rows = []  # (hora del evento, fila): se escriben del más reciente al más antiguo
+
     total = 0
     seen = set()
     for number, line in enumerate(sys.stdin, start=1):
@@ -77,8 +84,9 @@ def main():
             if key in seen:
                 continue
             seen.add(key)
-            writer.writerow([
-                get_field(log, "time", "Time"),
+            raw_time = get_field(log, "time", "Time")
+            rows.append((event_epoch(raw_time), [
+                to_cdmx(raw_time),
                 get_field(log, "productName", "product", "Cloud Service"),
                 get_field(log, "blade", "practice", "product", "Blade/Practice Type"),
                 get_field(log, "action", "Action"),
@@ -87,8 +95,11 @@ def main():
                 get_field(log, "dst", "destination", "Destination"),
                 get_field(log, "service_id", "service", "Service"),
                 destination_port(log),
-            ])
+            ]))
             total += 1
+
+    rows.sort(key=lambda item: item[0], reverse=True)
+    writer.writerows(row for _, row in rows)
 
     if total == 0:
         sys.stderr.write("ADVERTENCIA: No se encontraron eventos IPS para el rango solicitado.\n")

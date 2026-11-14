@@ -14,7 +14,7 @@
       rescue:
         - name: Registrar falla de FortiGate - System Events 7 días (las demás herramientas continúan)
           ansible.builtin.set_fact:
-            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - System Events 7 días'] }}"
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - System Events 7 días: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
 
     - name: Execute Checkpoint - Events IPS (últimos 7 días)
       block:
@@ -23,7 +23,7 @@
       rescue:
         - name: Registrar falla de Checkpoint - Events IPS 7 días (las demás herramientas continúan)
           ansible.builtin.set_fact:
-            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Events IPS 7 días'] }}"
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Events IPS 7 días: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
 
     - name: Execute Wazuh - CHD SAD Review (últimos 7 días)
       block:
@@ -32,9 +32,9 @@
       rescue:
         - name: Registrar falla de Wazuh - CHD SAD Review 7 días
           ansible.builtin.set_fact:
-            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - CHD SAD Review 7 días'] }}"
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - CHD SAD Review 7 días: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
 
     - name: Verificar que todas las herramientas enviaron su evidencia
       ansible.builtin.fail:
-        msg: "No se envió la evidencia de: {{ pci_failed_sections | join(', ') }}. Revise los errores anteriores."
+        msg: "{{ ['No se envió la evidencia de:'] + pci_failed_sections }}"
       when: pci_failed_sections | default([]) | length > 0

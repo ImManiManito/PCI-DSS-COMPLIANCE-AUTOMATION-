@@ -2,16 +2,18 @@
 """Parsea la salida cruda de 'execute log display' de FortiGate a un formato legible para evidencia PCI DSS.
 
 La entrada mezcla todas las consultas del día (una sola sesión SSH), así que aquí se
-aplican los mismos filtros que antes hacía el FortiGate: subtype=system, level=alert,
-action=login, status=failed y la fecha del reporte.
+aplican los filtros: subtype=system, level=alert, action=login, status=failed y el
+rango de fechas del reporte (CDMX).
 """
 import argparse
-import re
+import os
 import sys
 
-SEPARATOR = "-" * 70
-
-FIELD_PATTERN = re.compile(r'(\w+)=("[^"]*"|\S+)')
+sys.dont_write_bytecode = True  # no dejar __pycache__ en el servidor
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "common"))
+from fortigate_logs import (  # noqa: E402
+    SEPARATOR, add_range_arguments, event_time, format_time, in_range, is_log_line, parse_line,
+)
 
 FILTERS = {
     "subtype": "system",
@@ -21,16 +23,9 @@ FILTERS = {
 }
 
 
-def parse_line(line):
-    fields = {}
-    for key, value in FIELD_PATTERN.findall(line):
-        fields[key] = value.strip('"')
-    return fields
-
-
-def format_entry(log):
+def format_entry(log, local_dt):
     return (
-        f"Fecha          : {log.get('date', 'N/A')} {log.get('time', 'N/A')}\n"
+        f"Fecha (CDMX)   : {format_time(local_dt)}\n"
         f"Descripción    : {log.get('logdesc', 'N/A')}\n"
         f"Usuario        : {log.get('user', 'N/A')}\n"
         f"Interfaz/UI    : {log.get('ui', 'N/A')}\n"
@@ -47,30 +42,31 @@ def format_entry(log):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", required=True, help="Fecha del reporte (YYYY-MM-DD)")
+    add_range_arguments(parser)
     args = parser.parse_args()
 
-    raw = sys.stdin.read()
-    entries = []
+    found = []
     seen = set()
-    for line in raw.splitlines():
-        # Solo procesar líneas de log reales (tienen date= y logid=)
-        if "date=" not in line or "logid=" not in line:
+    for line in sys.stdin.read().splitlines():
+        if not is_log_line(line):
             continue
         log = parse_line(line)
-        if log.get("date") != args.date:
-            continue
         if any(log.get(field, "").lower() != value for field, value in FILTERS.items()):
+            continue
+        local_dt = event_time(log)
+        if not in_range(local_dt, args):
             continue
         # El mismo registro también llega en la consulta de System Events: deduplicar.
         key = frozenset(log.items())
         if key in seen:
             continue
         seen.add(key)
-        entries.append(format_entry(log))
+        found.append((local_dt, log))
 
-    if entries:
-        sys.stdout.write("".join(entries))
+    found.sort(key=lambda item: item[0], reverse=True)
+
+    if found:
+        sys.stdout.write("".join(format_entry(log, local_dt) for local_dt, log in found))
     else:
         sys.stdout.write("No se encontraron registros para el filtro aplicado.\n")
 

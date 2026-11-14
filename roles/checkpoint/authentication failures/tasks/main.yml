@@ -3,11 +3,12 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: Checkpoint Authentication Failures - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
+# Día CDMX anterior completo (00:00:00 a 23:59:59), en UTC para la API.
+# Ver roles/common/scripts/report_range.sh.
+- name: Checkpoint Authentication Failures - Definir rango del reporte (ayer, 00:00:00 a 23:59:59 CDMX)
   ansible.builtin.set_fact:
-    checkpoint_auth_failures_report_date: "{{ now(fmt='%Y-%m-%d') }}"
-    checkpoint_auth_failures_start_time: "{{ now(fmt='%Y-%m-%d') }}T00:00:00Z"
-    checkpoint_auth_failures_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59Z"
+    checkpoint_auth_failures_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 1') | from_json }}"
+    checkpoint_auth_failures_file: "Fallos de autenticación.csv"
 
 # La evidencia solo existe en un directorio temporal privado (0700) mientras se envía:
 # en cuanto postfix acepta el correo (o si algo falla) se elimina del servidor.
@@ -24,23 +25,40 @@
       ansible.builtin.set_fact:
         checkpoint_auth_failures_evidence_dir: "{{ checkpoint_auth_failures_tmp.path }}"
 
-    - name: Checkpoint Authentication Failures - Consultar Infinity Events y generar evidencia CSV
+    # pipefail: si falla la consulta a la API la tarea falla, en vez de enviar un CSV vacío.
+    # no_log oculta todo el resultado, también el motivo del error; por eso esta tarea no
+    # falla sola y la siguiente muestra solo stderr (los scripts nunca imprimen credenciales).
+    # timeout: la consulta nunca se queda colgada; si se agota termina con código 124.
+    - name: Checkpoint Authentication Failures - Consultar Infinity Events (VPN, Block) y generar evidencia CSV
       ansible.builtin.shell:
+        executable: /bin/bash
         cmd: >
-          bash "{{ playbook_dir }}/../../roles/checkpoint/authentication failures/scripts/checkpoint_auth_failures.sh"
+          set -o pipefail;
+          timeout -k 15 1800 bash "{{ playbook_dir }}/../../roles/checkpoint/authentication failures/scripts/checkpoint_auth_failures.sh"
           "{{ checkpoint_infinity_auth_url }}"
           "{{ checkpoint_infinity_events_url }}"
-          "{{ checkpoint_auth_failures_start_time }}"
-          "{{ checkpoint_auth_failures_end_time }}"
+          "{{ checkpoint_auth_failures_range.start_utc }}"
+          "{{ checkpoint_auth_failures_range.end_utc }}"
           | python3 "{{ playbook_dir }}/../../roles/checkpoint/authentication failures/scripts/parse_auth_failures.py"
-          > "{{ checkpoint_auth_failures_evidence_dir }}/Fallos de autenticacion_{{ checkpoint_auth_failures_report_date }}.csv"
+          > "{{ checkpoint_auth_failures_evidence_dir }}/{{ checkpoint_auth_failures_file }}"
       environment:
         CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
         CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
       register: checkpoint_auth_failures_result
       changed_when: false
+      failed_when: false
       no_log: true
       delegate_to: localhost
+
+    - name: Checkpoint Authentication Failures - Verificar la consulta a Infinity Events
+      ansible.builtin.fail:
+        msg: "{{ (checkpoint_auth_failures_result.stderr_lines | default(['La consulta falló sin mensaje de error.'])) + (['Tiempo máximo agotado (1800 s): la API de Check Point no respondió a tiempo.'] if checkpoint_auth_failures_result.rc | default(0) == 124 else []) }}"
+      when: checkpoint_auth_failures_result.rc | default(1) != 0
+
+    - name: Checkpoint Authentication Failures - Mostrar avisos de la consulta
+      ansible.builtin.debug:
+        var: checkpoint_auth_failures_result.stderr_lines
+      when: checkpoint_auth_failures_result.stderr_lines | default([]) | length > 0
 
     - name: Checkpoint Authentication Failures - Enviar evidencia por correo
       ansible.builtin.command:
@@ -49,8 +67,8 @@
           - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
           - "{{ checkpoint_mail_from }}"
           - "{{ checkpoint_mail_to }}"
-          - "Checkpoint Authentication Failures - Evidencia PCI DSS ({{ checkpoint_auth_failures_report_date }})"
-          - "{{ checkpoint_auth_failures_evidence_dir }}/Fallos de autenticacion_{{ checkpoint_auth_failures_report_date }}.csv"
+          - "Checkpoint Authentication Failures - Evidencia PCI DSS ({{ checkpoint_auth_failures_range.end_date }}, 00:00 a 23:59 CDMX)"
+          - "{{ checkpoint_auth_failures_evidence_dir }}/{{ checkpoint_auth_failures_file }}"
       changed_when: false
       delegate_to: localhost
   always:

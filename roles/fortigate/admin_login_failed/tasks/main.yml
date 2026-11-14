@@ -3,9 +3,10 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: FortiGate Admin Login Failed - Definir fecha del reporte (últimas 24 horas)
+# Día CDMX anterior completo (00:00:00 a 23:59:59). Ver roles/common/scripts/report_range.sh.
+- name: FortiGate Admin Login Failed - Definir rango del reporte (ayer, 00:00:00 a 23:59:59 CDMX)
   ansible.builtin.set_fact:
-    fortigate_admin_login_failed_report_date: "{{ now(fmt='%Y-%m-%d') }}"
+    fortigate_admin_login_failed_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 1') | from_json }}"
     fortigate_admin_login_failed_file: "admin login failed.txt"
     fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
@@ -40,7 +41,8 @@
           - "{{ item }}"
           - "{{ fortigate_run_id }}"
           - "{{ fortigate_log_cache_dir }}"
-          - "{{ fortigate_admin_login_failed_report_date }}"
+          - "{{ fortigate_admin_login_failed_range.start }}"
+          - "{{ fortigate_admin_login_failed_range.end }}"
       loop: "{{ groups['fortigates'] }}"
       loop_control:
         label: "{{ item }}"
@@ -62,7 +64,7 @@
           - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
           - "{{ fortigate_mail_from }}"
           - "{{ fortigate_mail_to }}"
-          - "FortiGate Admin Login Failed - Evidencia PCI DSS ({{ fortigate_admin_login_failed_report_date }})"
+          - "FortiGate Admin Login Failed - Evidencia PCI DSS ({{ fortigate_admin_login_failed_range.end_date }}, 00:00 a 23:59 CDMX)"
           - "{{ fortigate_admin_login_failed_evidence_dir }}/{{ fortigate_admin_login_failed_file }}"
       changed_when: false
       delegate_to: localhost

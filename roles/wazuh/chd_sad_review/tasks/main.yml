@@ -3,12 +3,11 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: Wazuh CHD SAD Review - Definir rango de fechas (últimas 24 horas, 00:00 a 23:59)
+# Día CDMX anterior completo (00:00:00 a 23:59:59). Ver roles/common/scripts/report_range.sh.
+- name: Wazuh CHD SAD Review - Definir rango del reporte (ayer, 00:00:00 a 23:59:59 CDMX)
   ansible.builtin.set_fact:
-    wazuh_chd_sad_report_date: "{{ now(fmt='%Y-%m-%d') }}"
-    wazuh_chd_sad_start_time: "{{ now(fmt='%Y-%m-%d') }}T00:00:00"
-    wazuh_chd_sad_end_time: "{{ now(fmt='%Y-%m-%d') }}T23:59:59"
-    wazuh_alerts_file: "{{ wazuh_alerts_file | default('/var/ossec/logs/alerts/alerts.json') }}"
+    wazuh_chd_sad_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 1') | from_json }}"
+    wazuh_alerts_base_dir: "{{ wazuh_alerts_base_dir | default('/var/ossec/logs/alerts') }}"
     # Usuario que ejecuta Ansible (svc_ansible): dueño de los CSV para poder adjuntarlos al correo.
     wazuh_evidence_owner: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
 
@@ -34,13 +33,16 @@
         wazuh_chd_sad_evidence_dir: "{{ wazuh_chd_sad_tmp.path }}"
 
     - name: Wazuh CHD SAD Review - Filtrar alerts.json (PCI DSS 10.6.1, 10.2.4, 10.2.7) y generar evidencia CSV
+      # pipefail: si falla la lectura de alertas la tarea falla, en vez de enviar un CSV vacío.
       ansible.builtin.shell:
+        executable: /bin/bash
         cmd: >
+          set -o pipefail;
           bash "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/chd_sad_review.sh"
-          "{{ wazuh_alerts_file }}"
+          "{{ wazuh_alerts_base_dir }}"
           "{{ item.req }}"
-          "{{ wazuh_chd_sad_start_time }}"
-          "{{ wazuh_chd_sad_end_time }}"
+          "{{ wazuh_chd_sad_range.start }}"
+          "{{ wazuh_chd_sad_range.end }}"
           | python3 "{{ playbook_dir }}/../../roles/wazuh/chd_sad_review/scripts/parse_chd_sad_review.py"
           > "{{ wazuh_chd_sad_csv }}"
           && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_chd_sad_csv }}"
@@ -66,7 +68,7 @@
           - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
           - "{{ wazuh_mail_from }}"
           - "{{ wazuh_mail_to }}"
-          - "Wazuh CHD SAD Review - Evidencia PCI DSS 10.6.1, 10.2.4, 10.2.7 ({{ wazuh_chd_sad_report_date }})"
+          - "Wazuh CHD SAD Review - Evidencia PCI DSS 10.6.1, 10.2.4, 10.2.7 ({{ wazuh_chd_sad_range.end_date }}, 00:00 a 23:59 CDMX)"
           - "{{ wazuh_chd_sad_evidence_dir }}/Eventos de impacto de seguridad CHD SAD.csv"
           - "{{ wazuh_chd_sad_evidence_dir }}/Fallos de autenticación.csv"
           - "{{ wazuh_chd_sad_evidence_dir }}/Modificaciones de objetos.csv"

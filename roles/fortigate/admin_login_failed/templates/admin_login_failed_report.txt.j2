@@ -4,8 +4,8 @@ Evidencia PCI DSS - FortiGate Admin Login Failed
 ==================================================================
 Dispositivo            : {{ result.item }}
 Tipo de evento         : Admin login failed (GUI/SSH)
-Rango cubierto         : Últimas 24 horas ({{ fortigate_admin_login_failed_report_date }})
-Generado el            : {{ now(fmt='%Y-%m-%d %H:%M:%S') }}
+Rango cubierto         : {{ fortigate_admin_login_failed_range.end_date }} de 00:00:00 a 23:59:59 (CDMX)
+Generado el (CDMX)     : {{ lookup('pipe', 'TZ=America/Mexico_City date "+%Y-%m-%d %H:%M:%S"') }}
 ==================================================================
 
 {{ result.stdout }}

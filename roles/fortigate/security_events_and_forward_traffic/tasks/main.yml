@@ -3,10 +3,10 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: FortiGate Forward Traffic 7 días - Definir rango del reporte (últimos 7 días)
+# Última semana completa: lunes 00:00:00 a domingo 23:59:59 CDMX. Ver roles/common/scripts/report_range.sh.
+- name: FortiGate Forward Traffic 7 días - Definir rango del reporte (semana lunes a domingo, CDMX)
   ansible.builtin.set_fact:
-    fortigate_forward_traffic_end_date: "{{ now(fmt='%Y-%m-%d') }}"
-    fortigate_forward_traffic_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
+    fortigate_forward_traffic_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' semana') | from_json }}"
     fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 # Nada se guarda en el servidor: logs y evidencia solo existen en un directorio
@@ -40,6 +40,8 @@
           - "{{ item }}"
           - "{{ fortigate_run_id }}"
           - "{{ fortigate_log_cache_dir }}"
+          - "{{ fortigate_forward_traffic_range.start }}"
+          - "{{ fortigate_forward_traffic_range.end }}"
       loop: "{{ groups['fortigates'] }}"
       loop_control:
         label: "{{ item }}"
@@ -59,6 +61,8 @@
           - "{{ item }}"
           - "{{ fortigate_run_id }}"
           - "{{ fortigate_log_cache_dir }}"
+          - "{{ fortigate_forward_traffic_range.start }}"
+          - "{{ fortigate_forward_traffic_range.end }}"
       loop: "{{ groups['fortigates'] }}"
       loop_control:
         label: "{{ item }}"
@@ -101,7 +105,7 @@
           - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
           - "{{ fortigate_mail_from }}"
           - "{{ fortigate_mail_to }}"
-          - "FortiGate Security Events and Forward Traffic 7 días - Evidencia PCI DSS ({{ fortigate_forward_traffic_start_date }} a {{ fortigate_forward_traffic_end_date }})"
+          - "FortiGate Security Events and Forward Traffic 7 días - Evidencia PCI DSS ({{ fortigate_forward_traffic_range.start_date }} a {{ fortigate_forward_traffic_range.end_date }}, CDMX)"
           - "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_seguridad_y_trafico_forward_{{ item }}.txt"
           - "{{ fortigate_forward_traffic_evidence_dir }}/Eventos_de_webfilter_{{ item }}.txt"
       loop: "{{ groups['fortigates'] }}"

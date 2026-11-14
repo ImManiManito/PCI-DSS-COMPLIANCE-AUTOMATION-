@@ -3,8 +3,8 @@ Evidencia PCI DSS - FortiGate Security Events and Forward Traffic
 ==================================================================
 Dispositivo            : {{ fortigate_device }}
 Tipo de evento          : Forward Traffic (type=traffic, subtype=forward)
-Rango cubierto          : Últimos 7 días ({{ fortigate_forward_traffic_start_date }} a {{ fortigate_forward_traffic_end_date }})
-Generado el             : {{ now(fmt='%Y-%m-%d %H:%M:%S') }}
+Rango cubierto          : {{ fortigate_forward_traffic_range.start_date }} 00:00:00 a {{ fortigate_forward_traffic_range.end_date }} 23:59:59 (CDMX, lunes a domingo)
+Generado el (CDMX)      : {{ lookup('pipe', 'TZ=America/Mexico_City date "+%Y-%m-%d %H:%M:%S"') }}
 ==================================================================
 
 {{ fortigate_raw_output }}

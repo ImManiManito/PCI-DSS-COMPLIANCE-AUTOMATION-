@@ -3,10 +3,10 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: FortiGate System Events 7 días - Definir rango del reporte (últimos 7 días)
+# Última semana completa: lunes 00:00:00 a domingo 23:59:59 CDMX. Ver roles/common/scripts/report_range.sh.
+- name: FortiGate System Events 7 días - Definir rango del reporte (semana lunes a domingo, CDMX)
   ansible.builtin.set_fact:
-    fortigate_system_events_7d_end_date: "{{ now(fmt='%Y-%m-%d') }}"
-    fortigate_system_events_7d_start_date: "{{ lookup('pipe', 'date -d \"-6 days\" +%Y-%m-%d') }}"
+    fortigate_system_events_7d_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' semana') | from_json }}"
     fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 - name: FortiGate System Events 7 días - Definir subtipos de eventos a recolectar
@@ -54,6 +54,8 @@
           - "{{ fortigate_run_id }}"
           - "{{ fortigate_log_cache_dir }}"
           - "{{ item.1.subtype }}"
+          - "{{ fortigate_system_events_7d_range.start }}"
+          - "{{ fortigate_system_events_7d_range.end }}"
       loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
       loop_control:
         label: "{{ item.0 }} - {{ item.1.label }}"
@@ -84,7 +86,7 @@
           - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
           - "{{ fortigate_mail_from }}"
           - "{{ fortigate_mail_to }}"
-          - "FortiGate System Events 7 días - Evidencia PCI DSS ({{ fortigate_system_events_7d_start_date }} a {{ fortigate_system_events_7d_end_date }})"
+          - "FortiGate System Events 7 días - Evidencia PCI DSS ({{ fortigate_system_events_7d_range.start_date }} a {{ fortigate_system_events_7d_range.end_date }}, CDMX)"
           - "{{ fortigate_system_events_7d_evidence_dir }}/Eventos_generales_de_seguridad.txt"
           - "{{ fortigate_system_events_7d_evidence_dir }}/Fallos_de_autenticacionVPN.txt"
           - "{{ fortigate_system_events_7d_evidence_dir }}/Eventos_de_usuariosVPN.txt"

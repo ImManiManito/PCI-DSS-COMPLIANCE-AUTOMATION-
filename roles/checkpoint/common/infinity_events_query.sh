@@ -22,6 +22,7 @@
 # distinto de 0 para que no se envíe evidencia vacía como si no hubiera eventos.
 #
 # Uso: infinity_events_query.sh <AUTH_URL> <EVENTS_URL> <START_ISO8601> <END_ISO8601> <FILTRO_LUCENE>
+# (FILTRO_LUCENE puede ser "" para traer todos los logs del rango)
 
 set -euo pipefail
 
@@ -45,57 +46,105 @@ command -v curl >/dev/null 2>&1 || { echo "ERROR: se requiere 'curl'." >&2; exit
 command -v jq >/dev/null 2>&1 || { echo "ERROR: se requiere 'jq'." >&2; exit 1; }
 
 LIMIT=10000          # máximo de logs por búsqueda que permite la API
-PAGE_LIMIT=1000      # máximo de logs por página que permite la API
 WINDOW_SECONDS=86400 # tamaño de cada ventana de búsqueda
 POLL_INTERVAL=3      # segundos entre consultas de estado
 POLL_MAX=100         # intentos de consulta de estado (~5 minutos por ventana)
-MAX_PAGES=50         # tope de páginas por ventana (LIMIT / PAGE_LIMIT = 10)
 
-CURL_OPTS=(-sS --fail --connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5)
+# Logs por página. Con páginas de 1000 la API respondía 503 (vacío) en retrieve con logs
+# pesados como IPS: no alcanza a armar la página. Se empieza con 200 y, si una página
+# sigue fallando tras los reintentos, se repite la búsqueda de esa ventana con 50. Las
+# páginas que ya se habían enviado se repiten, pero el parser descarta los duplicados.
+PAGE_LIMITS=(200 50)
+PAGE_INDEX=0         # tamaño en uso; una vez que baja, se mantiene para las demás ventanas
+
+# Esperas entre reintentos cuando la API responde 429, 5xx (p. ej. 503 al descargar
+# páginas con el servicio saturado) o falla la red: ~3 minutos en total por llamada.
+RETRY_DELAYS=(5 10 20 40 60 60)
+
+CURL_OPTS=(-sS --connect-timeout 15 --max-time 120)
 
 die() {
     echo "ERROR: $*" >&2
     exit 1
 }
 
-# api <METHOD> <URL> [BODY]: llamada autenticada; el cuerpo viaja por stdin y el
-# token en un descriptor de archivo, nunca en los argumentos de curl.
-api() {
-    local method="$1" url="$2" body="${3:-}"
-    if [[ -n "$body" ]]; then
-        curl "${CURL_OPTS[@]}" -X "$method" "$url" \
-            -H "Content-Type: application/json" \
-            -H @<(printf 'Authorization: Bearer %s\n' "$TOKEN") \
-            --data-binary @- <<<"$body"
-    else
-        curl "${CURL_OPTS[@]}" -X "$method" "$url" \
-            -H @<(printf 'Authorization: Bearer %s\n' "$TOKEN")
-    fi
+# 1) Autenticación en Infinity Portal: intercambia clientId/accessKey por un token temporal.
+TOKEN=""
+authenticate() {
+    local response
+    response="$(jq -n '{clientId: env.CHECKPOINT_CLIENT_ID, accessKey: env.CHECKPOINT_ACCESS_KEY}' \
+        | curl "${CURL_OPTS[@]}" --fail --retry 3 --retry-delay 5 \
+            -X POST "$AUTH_URL" -H "Content-Type: application/json" --data-binary @-)" \
+        || die "Falló la autenticación en Infinity Portal ($AUTH_URL)."
+    TOKEN="$(jq -r '.data.token // empty' <<<"$response")"
+    [[ -n "$TOKEN" ]] || die "Infinity Portal no devolvió un token de autenticación."
 }
 
-# 1) Autenticación en Infinity Portal: intercambia clientId/accessKey por un token temporal.
-AUTH_RESPONSE="$(jq -n '{clientId: env.CHECKPOINT_CLIENT_ID, accessKey: env.CHECKPOINT_ACCESS_KEY}' \
-    | curl "${CURL_OPTS[@]}" -X POST "$AUTH_URL" -H "Content-Type: application/json" --data-binary @-)" \
-    || die "Falló la autenticación en Infinity Portal ($AUTH_URL)."
+# api <METHOD> <URL> [BODY]: llamada autenticada que imprime el cuerpo de la respuesta.
+# El cuerpo de la petición viaja por stdin y el token en un descriptor de archivo, nunca
+# en los argumentos de curl. Reintenta con espera creciente ante errores temporales y
+# renueva el token una vez si expiró (401). Las respuestas se guardan solo en memoria.
+api() {
+    local method="$1" url="$2" body="${3:-}"
+    local attempt=0 reauth=0 output code
+    while true; do
+        if [[ -n "$body" ]]; then
+            output="$(curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" "$url" \
+                -H "Content-Type: application/json" \
+                -H @<(printf 'Authorization: Bearer %s\n' "$TOKEN") \
+                --data-binary @- <<<"$body")" || output=$'\n000'
+        else
+            output="$(curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" "$url" \
+                -H @<(printf 'Authorization: Bearer %s\n' "$TOKEN"))" || output=$'\n000'
+        fi
+        code="${output##*$'\n'}"
+        output="${output%$'\n'*}"
 
-TOKEN="$(jq -r '.data.token // empty' <<<"$AUTH_RESPONSE")"
-[[ -n "$TOKEN" ]] || die "Infinity Portal no devolvió un token de autenticación."
+        if [[ "$code" == 2?? ]]; then
+            printf '%s\n' "$output"
+            return 0
+        fi
+        if [[ "$code" == 401 ]] && (( reauth == 0 )); then
+            echo "AVISO: token vencido (HTTP 401); se renueva la autenticación." >&2
+            reauth=1
+            authenticate
+            continue
+        fi
+        if [[ "$code" == 429 || "$code" == 5?? || "$code" == 000 ]] && (( attempt < ${#RETRY_DELAYS[@]} )); then
+            echo "AVISO: HTTP ${code} en ${method} ${url##*/}; reintento $(( attempt + 1 ))/${#RETRY_DELAYS[@]} en ${RETRY_DELAYS[attempt]} s." >&2
+            sleep "${RETRY_DELAYS[attempt]}"
+            attempt=$(( attempt + 1 ))
+            continue
+        fi
+        echo "ERROR: HTTP ${code} en ${method} ${url##*/}: $(head -c 300 <<<"$output" | tr '\n' ' ')" >&2
+        return 1
+    done
+}
+
+authenticate
 
 # 2) Búsqueda de una ventana de tiempo: crea la tarea, espera a que esté lista y
-#    descarga todas sus páginas.
-query_window() {
-    local start="$1" end="$2"
+#    descarga todas sus páginas. Devuelve 2 si no se pudo descargar una página (para
+#    repetir con páginas más chicas); cualquier otro error termina el script.
+search_window() {
+    local start="$1" end="$2" page_limit="$3"
     local body response task_id state="" page_token="" next_token attempt count pages=0 total=0
+    local max_pages=$(( LIMIT / page_limit + 10 ))
 
+    # Filtro vacío = todos los logs del rango (se omite el campo filter).
     body="$(jq -n --arg f "$FILTER" --arg s "$start" --arg e "$end" \
-        --argjson limit "$LIMIT" --argjson page "$PAGE_LIMIT" \
-        '{filter: $f, limit: $limit, pageLimit: $page, timeframe: {startTime: $s, endTime: $e}}')"
+        --argjson limit "$LIMIT" --argjson page "$page_limit" \
+        '{limit: $limit, pageLimit: $page, timeframe: {startTime: $s, endTime: $e}}
+         + (if $f != "" then {filter: $f} else {} end)')"
 
     response="$(api POST "$EVENTS_URL" "$body")" \
         || die "No se pudo crear la búsqueda en Infinity Events ($start a $end)."
     task_id="$(jq -r '.data.taskId // empty' <<<"$response")"
     [[ -n "$task_id" ]] || die "Infinity Events no devolvió taskId ($start a $end)."
 
+    # Se descarga en cuanto la búsqueda está "ready" (o "done"). No se espera solo a "done":
+    # la API puede no marcar "done" hasta que se descargan las páginas y la espera se
+    # quedaba congelada. Un 503 al descargar se resuelve con los reintentos de api().
     for (( attempt = 0; attempt < POLL_MAX; attempt++ )); do
         response="$(api GET "${EVENTS_URL}/${task_id}")" \
             || die "No se pudo consultar el estado de la búsqueda ($start a $end)."
@@ -118,11 +167,13 @@ query_window() {
     # Sin pageToken (o "NULL") no hay resultados para esta ventana.
     while [[ -n "$page_token" && "${page_token^^}" != "NULL" ]]; do
         pages=$(( pages + 1 ))
-        (( pages <= MAX_PAGES )) || die "Demasiadas páginas en una sola búsqueda ($start a $end)."
+        (( pages <= max_pages )) || die "Demasiadas páginas en una sola búsqueda ($start a $end)."
 
         body="$(jq -n --arg t "$task_id" --arg p "$page_token" '{taskId: $t, pageToken: $p}')"
-        response="$(api POST "${EVENTS_URL}/retrieve" "$body")" \
-            || die "No se pudo descargar una página de resultados ($start a $end)."
+        if ! response="$(api POST "${EVENTS_URL}/retrieve" "$body")"; then
+            echo "AVISO: no se pudo descargar la página ${pages} con páginas de ${page_limit} logs ($start a $end)." >&2
+            return 2
+        fi
         [[ "$(jq -r '.success // false' <<<"$response")" == "true" ]] \
             || die "Infinity Events devolvió un error al descargar resultados ($start a $end)."
 
@@ -139,6 +190,21 @@ query_window() {
     if (( total >= LIMIT )); then
         echo "AVISO: $start a $end alcanzó el máximo de $LIMIT logs por búsqueda; puede haber más eventos sin incluir." >&2
     fi
+}
+
+# query_window: busca una ventana; si una página falla, repite con páginas más chicas.
+query_window() {
+    local start="$1" end="$2" rc
+    while (( PAGE_INDEX < ${#PAGE_LIMITS[@]} )); do
+        rc=0
+        search_window "$start" "$end" "${PAGE_LIMITS[PAGE_INDEX]}" || rc=$?
+        (( rc == 0 )) && return 0
+        PAGE_INDEX=$(( PAGE_INDEX + 1 ))
+        if (( PAGE_INDEX < ${#PAGE_LIMITS[@]} )); then
+            echo "AVISO: se repite la búsqueda $start a $end con páginas de ${PAGE_LIMITS[PAGE_INDEX]} logs." >&2
+        fi
+    done
+    die "No se pudo descargar una página de resultados ($start a $end), ni con páginas de ${PAGE_LIMITS[-1]} logs."
 }
 
 # 3) Recorre el rango pedido en ventanas de 24 horas.

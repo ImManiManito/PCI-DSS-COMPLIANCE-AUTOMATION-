@@ -3,9 +3,10 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../../vars/vault.yml"
 
-- name: FortiGate System Events - Definir fecha del reporte (últimas 24 horas)
+# Día CDMX anterior completo (00:00:00 a 23:59:59). Ver roles/common/scripts/report_range.sh.
+- name: FortiGate System Events - Definir rango del reporte (ayer, 00:00:00 a 23:59:59 CDMX)
   ansible.builtin.set_fact:
-    fortigate_system_events_report_date: "{{ lookup('pipe', 'TZ=America/Mexico_City date +%Y-%m-%d') }}"
+    fortigate_system_events_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 1') | from_json }}"
     fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
 
 - name: FortiGate System Events - Definir subtipos de eventos a recolectar
@@ -53,6 +54,8 @@
           - "{{ fortigate_run_id }}"
           - "{{ fortigate_log_cache_dir }}"
           - "{{ item.1.subtype }}"
+          - "{{ fortigate_system_events_range.start }}"
+          - "{{ fortigate_system_events_range.end }}"
       loop: "{{ groups['fortigates'] | product(fortigate_system_events_types) | list }}"
       loop_control:
         label: "{{ item.0 }} - {{ item.1.label }}"
@@ -83,7 +86,7 @@
           - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
           - "{{ fortigate_mail_from }}"
           - "{{ fortigate_mail_to }}"
-          - "FortiGate System Events - Evidencia PCI DSS ({{ fortigate_system_events_report_date }})"
+          - "FortiGate System Events - Evidencia PCI DSS ({{ fortigate_system_events_range.end_date }}, 00:00 a 23:59 CDMX)"
           - "{{ fortigate_system_events_evidence_dir }}/Eventos_generales_de_seguridad.txt"
           - "{{ fortigate_system_events_evidence_dir }}/Fallos_de_autenticacionVPN.txt"
           - "{{ fortigate_system_events_evidence_dir }}/Eventos_de_usuariosVPN.txt"

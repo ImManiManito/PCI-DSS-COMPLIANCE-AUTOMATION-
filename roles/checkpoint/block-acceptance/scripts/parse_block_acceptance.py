@@ -10,10 +10,15 @@ y escribe el CSV resultante en stdout.
 """
 import csv
 import json
+import os
 import sys
 
+sys.dont_write_bytecode = True  # no dejar __pycache__ en el servidor
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "common", "scripts"))
+from cdmx_time import event_epoch, to_cdmx  # noqa: E402
+
 CSV_HEADER = [
-    "Time",
+    "Time (CDMX)",
     "Cloud Service",
     "Blade/Practice Type",
     "Action",
@@ -32,7 +37,7 @@ def extract_logs(page):
         candidates.append(data)
 
     for container in candidates:
-        for key in ("logs", "records", "results", "events"):
+        for key in ("records", "logs", "results", "events"):
             value = container.get(key)
             if isinstance(value, list):
                 return value
@@ -51,21 +56,32 @@ def main():
     writer = csv.writer(sys.stdout)
     writer.writerow(CSV_HEADER)
 
+    rows = []  # (hora del evento, fila): se escriben del más reciente al más antiguo
+
     total = 0
-    for line in sys.stdin:
+    seen = set()
+    for number, line in enumerate(sys.stdin, start=1):
         line = line.strip()
         if not line:
             continue
         try:
             page = json.loads(line)
         except json.JSONDecodeError:
-            continue
+            sys.exit(f"ERROR: la línea {number} de la respuesta de Infinity Events no es JSON válido.")
 
         for log in extract_logs(page):
-            writer.writerow([
-                get_field(log, "time", "Time"),
+            if not isinstance(log, dict):
+                continue
+            # Las ventanas de búsqueda comparten el instante de corte: descartar repetidos.
+            key = json.dumps(log, sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
+            raw_time = get_field(log, "time", "Time")
+            rows.append((event_epoch(raw_time), [
+                to_cdmx(raw_time),
                 get_field(log, "productName", "product", "Cloud Service"),
-                get_field(log, "blade", "practice", "Blade/Practice Type"),
+                get_field(log, "blade", "practice", "product", "Blade/Practice Type"),
                 # El valor puede venir como "Accept"/"Prevent" (u otras acciones
                 # propias de la política) según el blade que generó el log.
                 get_field(log, "action", "Action"),
@@ -73,8 +89,11 @@ def main():
                 get_field(log, "src", "source", "Source"),
                 get_field(log, "dst", "destination", "Destination"),
                 get_field(log, "user", "user_name", "xauthuser", "User"),
-            ])
+            ]))
             total += 1
+
+    rows.sort(key=lambda item: item[0], reverse=True)
+    writer.writerows(row for _, row in rows)
 
     if total == 0:
         sys.stderr.write("ADVERTENCIA: No se encontraron logs para el rango solicitado.\n")

@@ -5,8 +5,8 @@ Evidencia PCI DSS - FortiGate Configuration Changes
 Dispositivo            : {{ result.item }}
 Tipo de evento         : Configuration Changes (subtype: system)
 Niveles filtrados      : notice, information
-Rango cubierto         : Últimas 24 horas ({{ fortigate_configuration_changes_report_date }})
-Generado el            : {{ now(fmt='%Y-%m-%d %H:%M:%S') }}
+Rango cubierto         : {{ fortigate_configuration_changes_range.end_date }} de 00:00:00 a 23:59:59 (CDMX)
+Generado el (CDMX)     : {{ lookup('pipe', 'TZ=America/Mexico_City date "+%Y-%m-%d %H:%M:%S"') }}
 ==================================================================
 
 {{ result.stdout }}

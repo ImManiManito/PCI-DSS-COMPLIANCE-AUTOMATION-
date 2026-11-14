@@ -1,46 +1,24 @@
 #!/usr/bin/env python3
-"""Parsea la salida cruda de 'execute log display' de FortiGate a un formato legible para evidencia PCI DSS."""
+"""Parsea la salida cruda de 'execute log display' de FortiGate a un formato legible para evidencia PCI DSS.
+
+System, VPN y User Events. Lo usan el reporte diario (system_events) y el semanal
+(system_events_7_days). La entrada mezcla varias consultas, así que se filtra por
+subtipo, nivel y rango de fechas (CDMX).
+"""
 import argparse
-import re
+import os
 import sys
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
-CDMX = ZoneInfo("America/Mexico_City")
-
-SEPARATOR = "-" * 70
-
-FIELD_PATTERN = re.compile(r'(\w+)=("[^"]*"|\S+)')
-
-
-def parse_line(line):
-    fields = {}
-    for key, value in FIELD_PATTERN.findall(line):
-        fields[key] = value.strip('"')
-    return fields
-
-
-def to_cdmx(log):
-    """Devuelve el datetime del log en America/Mexico_City (usa eventtime; si falta, date/time en UTC)."""
-    eventtime = log.get("eventtime", "")
-    try:
-        if eventtime.isdigit():
-            seconds = int(eventtime)
-            while seconds > 10**11:
-                seconds //= 1000
-            utc_dt = datetime.fromtimestamp(seconds, tz=timezone.utc)
-        else:
-            utc_dt = datetime.strptime(
-                f"{log['date']} {log['time']}", "%Y-%m-%d %H:%M:%S"
-            ).replace(tzinfo=timezone.utc)
-    except (KeyError, ValueError):
-        return None
-    return utc_dt.astimezone(CDMX)
+sys.dont_write_bytecode = True  # no dejar __pycache__ en el servidor
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "common"))
+from fortigate_logs import (  # noqa: E402
+    SEPARATOR, add_range_arguments, event_time, format_time, in_range, is_log_line, parse_line,
+)
 
 
 def format_entry(log, local_dt):
     return (
-        f"Fecha (CDMX)   : {local_dt.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Fecha (CDMX)   : {format_time(local_dt)}\n"
         f"Subtipo        : {log.get('subtype', 'N/A')}\n"
         f"Nivel          : {log.get('level', 'N/A')}\n"
         f"Descripción    : {log.get('logdesc', 'N/A')}\n"
@@ -58,41 +36,37 @@ def format_entry(log, local_dt):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--hours", type=int, default=24, help="Ventana en horas hacia atrás desde ahora")
+    parser.add_argument("--subtype", required=True, help="Subtipo permitido (system, vpn, user)")
     parser.add_argument("--levels", required=True, help="Niveles permitidos separados por coma")
-    parser.add_argument("--subtype", help="Subtipo permitido (system, vpn, user); la entrada mezcla varios")
+    add_range_arguments(parser)
     args = parser.parse_args()
+    subtype = args.subtype.lower()
     levels = {lvl.strip().lower() for lvl in args.levels.split(",")}
-    subtype = args.subtype.lower() if args.subtype else None
-    now_cdmx = datetime.now(CDMX)
-    window_start = now_cdmx - timedelta(hours=args.hours)
 
-    raw = sys.stdin.read()
     found = []
     seen = set()
-    for line in raw.splitlines():
-        # Solo procesar líneas de log reales (tienen date= y logid=)
-        if "date=" not in line or "logid=" not in line:
+    for line in sys.stdin.read().splitlines():
+        if not is_log_line(line):
             continue
         log = parse_line(line)
-        if subtype and log.get("subtype", "").lower() != subtype:
-            continue
-        local_dt = to_cdmx(log)
-        if local_dt is None or not (window_start <= local_dt <= now_cdmx):
+        if log.get("subtype", "").lower() != subtype:
             continue
         if log.get("level", "").lower() not in levels:
             continue
-        key = (log.get("eventtime"), log.get("logid"), log.get("msg"))
+        local_dt = event_time(log)
+        if not in_range(local_dt, args):
+            continue
+        # Las consultas de días contiguos pueden traer el mismo registro.
+        key = frozenset(log.items())
         if key in seen:
             continue
         seen.add(key)
         found.append((local_dt, log))
 
     found.sort(key=lambda item: item[0], reverse=True)
-    entries = [format_entry(log, local_dt) for local_dt, log in found]
 
-    if entries:
-        sys.stdout.write("".join(entries))
+    if found:
+        sys.stdout.write("".join(format_entry(log, local_dt) for local_dt, log in found))
     else:
         sys.stdout.write("No se encontraron registros para el filtro aplicado.\n")
 

@@ -26,6 +26,7 @@ The project is in an active but incremental implementation stage. The repository
 │   ├── monthly/
 │   └── quarterly/
 ├── roles/
+│   ├── common/               # Report date ranges and CDMX time helpers
 │   ├── fortigate/
 │   ├── checkpoint/
 │   └── wazuh/
@@ -66,6 +67,21 @@ The automation is organized by technology:
 - `roles/wazuh/`: local Wazuh-based review of security events and alert correlation for CHD/SAD analyses and weekly evidence collection.
 
 Each role generally contains `scripts/`, `tasks/`, and `templates/` folders plus helper logic for mail delivery and SSH remote execution when required.
+
+## Report time ranges
+
+Every report covers whole days in Mexico City time (CDMX), computed in one place (`roles/common/scripts/report_range.sh`):
+
+- **Daily**: the previous day, 00:00:00 to 23:59:59 CDMX.
+- **Weekly**: the last complete week, Monday 00:00:00 to Sunday 23:59:59 CDMX (e.g. Monday Nov 16 to Sunday Nov 22). Sunday is not over while it is still Sunday, so the weekly run must happen after Sunday midnight (early Monday) to include it.
+
+Ranges only include days that have already ended, and consecutive runs are contiguous, with no gaps or overlaps. The server runs in UTC and each asset records time differently, so each one is trimmed by the exact event time:
+
+- **FortiGate**: the device-local dates touched by the range are queried, and the parser trims by `eventtime` (epoch), independent of the device time zone.
+- **Check Point**: the range is sent to the API in UTC.
+- **Wazuh**: the current `alerts.json` and the archived files (`YYYY/Mon/ossec-alerts-DD.json.gz`) are read, and each alert is trimmed by its `timestamp`, honoring its offset.
+
+Evidence shows each event's time in CDMX, newest first.
 
 ## Deployment architecture
 
