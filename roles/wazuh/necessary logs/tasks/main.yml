@@ -1,0 +1,67 @@
+---
+- name: Wazuh Eventos generales 7 días - Cargar credenciales (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+# Última semana completa: lunes 00:00:00 a domingo 23:59:59 CDMX. Ver roles/common/scripts/report_range.sh.
+- name: Wazuh Eventos generales 7 días - Definir rango del reporte (semana lunes a domingo, CDMX)
+  ansible.builtin.set_fact:
+    wazuh_general_7d_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' semana') | from_json }}"
+    wazuh_alerts_base_dir: "{{ wazuh_alerts_base_dir | default('/var/ossec/logs/alerts') }}"
+    # Usuario que ejecuta Ansible (svc_ansible): dueño del CSV para poder adjuntarlo al correo.
+    wazuh_evidence_owner: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
+    wazuh_general_7d_name: "Eventos generales de impacto a la seguridad"
+
+# La evidencia solo existe en un directorio temporal privado (0700, de svc_ansible)
+# mientras se envía: en cuanto postfix acepta el correo (o si algo falla) se elimina.
+- name: Wazuh Eventos generales 7 días - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_wazuh_necessary_logs_7d_
+  register: wazuh_general_7d_tmp
+
+- name: Wazuh Eventos generales 7 días - Generar, enviar y eliminar evidencia
+  block:
+    - name: Wazuh Eventos generales 7 días - Definir ruta temporal de la evidencia
+      ansible.builtin.set_fact:
+        wazuh_general_7d_csv: "{{ wazuh_general_7d_tmp.path }}/{{ wazuh_general_7d_name }}.csv"
+
+    - name: Wazuh Eventos generales 7 días - Extraer todas las alertas (sin filtro) y generar evidencia CSV
+      # pipefail: si falla la lectura de alertas la tarea falla, en vez de enviar un CSV vacío.
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: >
+          set -o pipefail;
+          bash "{{ playbook_dir }}/../../roles/wazuh/necessary logs/scripts/necessary_logs.sh"
+          "{{ wazuh_alerts_base_dir }}"
+          "{{ wazuh_general_7d_range.start }}"
+          "{{ wazuh_general_7d_range.end }}"
+          | python3 "{{ playbook_dir }}/../../roles/wazuh/necessary logs/scripts/parse_necessary_logs.py"
+          > "{{ wazuh_general_7d_csv }}"
+          && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_general_7d_csv }}"
+          && chmod 0600 "{{ wazuh_general_7d_csv }}"
+      become: true
+      become_method: sudo
+      vars:
+        ansible_become_password: "{{ wazuh_become_password }}"
+        ansible_pipelining: false
+      register: wazuh_general_7d_result
+      changed_when: false
+      # Sin filtro se procesan todas las alertas de la semana: más tiempo que los reportes filtrados.
+      timeout: 1800
+
+    - name: Wazuh Eventos generales 7 días - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
+          - "{{ wazuh_mail_from }}"
+          - "{{ wazuh_mail_to }}"
+          - "Wazuh {{ wazuh_general_7d_name }} 7 días - Evidencia ({{ wazuh_general_7d_range.start_date }} a {{ wazuh_general_7d_range.end_date }}, CDMX)"
+          - "{{ wazuh_general_7d_csv }}"
+      changed_when: false
+  always:
+    - name: Wazuh Eventos generales 7 días - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ wazuh_general_7d_tmp.path }}"
+        state: absent

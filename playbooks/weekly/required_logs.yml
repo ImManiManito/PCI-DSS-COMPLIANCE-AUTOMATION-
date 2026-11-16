@@ -25,6 +25,15 @@
           ansible.builtin.set_fact:
             pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Block-Acceptance: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
 
+    - name: Execute Wazuh - Eventos generales de impacto a la seguridad (últimos 7 días)
+      block:
+        - name: Wazuh - Eventos generales de impacto a la seguridad (últimos 7 días)
+          ansible.builtin.include_tasks: "../../roles/wazuh/necessary logs/tasks/main.yml"
+      rescue:
+        - name: Registrar falla de Wazuh - Eventos generales de impacto a la seguridad 7 días (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - Eventos generales de impacto a la seguridad 7 días: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
     - name: Verificar que todas las herramientas enviaron su evidencia
       ansible.builtin.fail:
         msg: "{{ ['No se envió la evidencia de:'] + pci_failed_sections }}"
