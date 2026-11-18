@@ -1,0 +1,81 @@
+---
+# Wazuh - Logs disponibles 3M (PCI DSS 10.5.1): TODAS las alertas de los últimos 90 días,
+# sin ningún filtro (ni requisito PCI, ni regla, ni nivel). Reutiliza el script y el parser
+# de "necessary logs" (Eventos generales de impacto a la seguridad); solo cambia el rango.
+- name: Wazuh Logs 3M - Cargar credenciales (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+# 90 días CDMX completos anteriores a hoy. Ver roles/common/scripts/report_range.sh.
+- name: Wazuh Logs 3M - Definir rango del reporte (90 días, CDMX)
+  ansible.builtin.set_fact:
+    wazuh_logs_3m_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 90') | from_json }}"
+    wazuh_alerts_base_dir: "{{ wazuh_alerts_base_dir | default('/var/ossec/logs/alerts') }}"
+    # Usuario que ejecuta Ansible (svc_ansible): dueño del CSV para poder comprimirlo y adjuntarlo.
+    wazuh_evidence_owner: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
+    wazuh_logs_3m_name: "Wazuh_todos_los_logs_3M"
+
+# La evidencia solo existe en un directorio temporal privado (0700, de svc_ansible)
+# mientras se envía: en cuanto postfix acepta el correo (o si algo falla) se elimina.
+- name: Wazuh Logs 3M - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_wazuh_logs_3m_
+  register: wazuh_logs_3m_tmp
+
+- name: Wazuh Logs 3M - Generar, enviar y eliminar evidencia
+  block:
+    - name: Wazuh Logs 3M - Definir rutas temporales de la evidencia
+      ansible.builtin.set_fact:
+        wazuh_logs_3m_csv: "{{ wazuh_logs_3m_tmp.path }}/{{ wazuh_logs_3m_name }}_{{ wazuh_logs_3m_range.start_date }}_a_{{ wazuh_logs_3m_range.end_date }}.csv"
+        wazuh_logs_3m_zip: "{{ wazuh_logs_3m_tmp.path }}/{{ wazuh_logs_3m_name }}_{{ wazuh_logs_3m_range.start_date }}_a_{{ wazuh_logs_3m_range.end_date }}.zip"
+
+    - name: Wazuh Logs 3M - Extraer todas las alertas (sin filtro) y generar evidencia CSV
+      # pipefail: si falla la lectura de alertas la tarea falla, en vez de enviar un CSV vacío.
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: >
+          set -o pipefail;
+          bash "{{ playbook_dir }}/../../roles/wazuh/necessary logs/scripts/necessary_logs.sh"
+          "{{ wazuh_alerts_base_dir }}"
+          "{{ wazuh_logs_3m_range.start }}"
+          "{{ wazuh_logs_3m_range.end }}"
+          | python3 "{{ playbook_dir }}/../../roles/wazuh/necessary logs/scripts/parse_necessary_logs.py"
+          > "{{ wazuh_logs_3m_csv }}"
+          && chown "{{ wazuh_evidence_owner }}" "{{ wazuh_logs_3m_csv }}"
+          && chmod 0600 "{{ wazuh_logs_3m_csv }}"
+      become: true
+      become_method: sudo
+      vars:
+        ansible_become_password: "{{ wazuh_become_password }}"
+        ansible_pipelining: false
+      register: wazuh_logs_3m_result
+      changed_when: false
+      # Todas las alertas de 90 días: mucho más tiempo que el reporte semanal (1800 s).
+      timeout: 14400
+
+    # 90 días de alertas no caben en un correo como CSV: se comprime en .zip (el CSV se
+    # elimina al comprimirlo).
+    - name: Wazuh Logs 3M - Comprimir evidencia
+      ansible.builtin.archive:
+        path: "{{ wazuh_logs_3m_csv }}"
+        dest: "{{ wazuh_logs_3m_zip }}"
+        format: zip
+        remove: true
+        mode: "0600"
+
+    - name: Wazuh Logs 3M - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
+          - "{{ wazuh_mail_from }}"
+          - "{{ wazuh_mail_to }}"
+          - "Wazuh Logs 3M (últimos 90 días, sin filtro) - Evidencia PCI DSS ({{ wazuh_logs_3m_range.start_date }} a {{ wazuh_logs_3m_range.end_date }}, CDMX)"
+          - "{{ wazuh_logs_3m_zip }}"
+      changed_when: false
+  always:
+    - name: Wazuh Logs 3M - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ wazuh_logs_3m_tmp.path }}"
+        state: absent

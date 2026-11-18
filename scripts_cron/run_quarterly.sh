@@ -73,6 +73,10 @@ fi
 overall_exit=0
 for playbook in "${playbooks[@]}"; do
     playbook_name=$(basename "${playbook}")
+    if [[ "${playbook_name}" == "available_logs.yml" ]]; then
+        log "OMITIDO: ${playbook_name} (tiene su propio calendario: scripts_cron/run_available_logs.sh)"
+        continue
+    fi
     if [[ ! -s "${playbook}" ]]; then
         log "OMITIDO: ${playbook_name} (archivo vacío)"
         continue

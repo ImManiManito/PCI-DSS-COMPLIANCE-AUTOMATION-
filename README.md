@@ -53,7 +53,7 @@ The project is in an active but incremental implementation stage. The repository
 | 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Defined / pending |
 | 10.4.2.1.a, 10.4.2.1.b | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Defined / pending |
 | 7.2.4.a, 7.2.4.b | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Defined / pending |
-| 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly | Defined / pending |
+| 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly (28th of Mar/Jun/Sep/Dec) | Implemented |
 | 8.3.9, 8.3.10.1 | Password Changes (`playbooks/quarterly/password_changes.yml`) | Quarterly | Implemented |
 | 12.3.3 | Review of Suites and Protocols (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Quarterly | Defined / pending |
 | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Wireless Access Points (`playbooks/quarterly/wireless_access_points.yml`) | Quarterly | Defined / pending |
@@ -103,6 +103,7 @@ Scheduled execution is supported through the scripts in `scripts_cron/`:
 - `run_weekly.sh`
 - `run_monthly.sh`
 - `run_quarterly.sh`
+- `run_available_logs.sh` (Available Logs 3M: 28th of March, June, September and December)
 
 These scripts are designed to execute the corresponding playbooks according to the configured frequency and to integrate with cron-based scheduling.
 

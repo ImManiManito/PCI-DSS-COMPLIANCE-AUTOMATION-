@@ -7,6 +7,7 @@ válido, para no generar evidencia incompleta.
 """
 
 import csv
+import hashlib
 import json
 import os
 import sys
@@ -80,7 +81,8 @@ def main():
             if not isinstance(log, dict):
                 continue
             # Las ventanas de búsqueda comparten el instante de corte: descartar repetidos.
-            key = json.dumps(log, sort_keys=True)
+            # Se guarda solo el hash: con 90 días de logs el JSON completo agotaría la memoria.
+            key = hashlib.blake2b(json.dumps(log, sort_keys=True).encode(), digest_size=16).digest()
             if key in seen:
                 continue
             seen.add(key)

@@ -1,0 +1,39 @@
+---
+# 3M - Logs (Disponibles) - PCI DSS 10.5.1
+- name: Available Logs - Quarterly Security Activities (3M)
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Execute Checkpoint - Logs 3M (todos los logs e IPS, últimos 90 días)
+      block:
+        - name: Checkpoint - Logs 3M (todos los logs e IPS, últimos 90 días)
+          ansible.builtin.include_tasks: ../../roles/checkpoint/available_logs_3m/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Checkpoint - Logs 3M (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Logs 3M: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Execute FortiGate - Eventos generales de seguridad (últimos 7 días)
+      block:
+        - name: FortiGate - Eventos generales de seguridad (últimos 7 días)
+          ansible.builtin.include_tasks: ../../roles/fortigate/general_security_events_7_days/tasks/main.yml
+      rescue:
+        - name: Registrar falla de FortiGate - Eventos generales de seguridad 7 días (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - Eventos generales de seguridad 7 días: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Execute Wazuh - Logs 3M (todas las alertas, últimos 90 días)
+      block:
+        - name: Wazuh - Logs 3M (todas las alertas, últimos 90 días)
+          ansible.builtin.include_tasks: "../../roles/wazuh/available_logs_3m/tasks/main.yml"
+      rescue:
+        - name: Registrar falla de Wazuh - Logs 3M (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - Logs 3M: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Verificar que todas las herramientas enviaron su evidencia
+      ansible.builtin.fail:
+        msg: "{{ ['No se envió la evidencia de:'] + pci_failed_sections }}"
+      when: pci_failed_sections | default([]) | length > 0

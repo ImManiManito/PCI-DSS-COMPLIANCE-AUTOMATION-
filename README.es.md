@@ -53,7 +53,7 @@ El proyecto se encuentra en una etapa activa pero incremental de implementación
 | 8.2.6 | Actividad de cuentas (`playbooks/monthly/account_activity.yml`) | Mensual | Definido / pendiente |
 | 10.4.2.1.a, 10.4.2.1.b | Evaluaciones periódicas (`playbooks/monthly/periodic_evaluations.yml`) | Mensual | Definido / pendiente |
 | 7.2.4.a, 7.2.4.b | Cuentas privilegiadas (`playbooks/monthly/privileged_accounts.yml`) | Mensual | Definido / pendiente |
-| 10.5.1.a, 10.5.1.b, 10.5.1.c | Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral | Definido / pendiente |
+| 10.5.1.a, 10.5.1.b, 10.5.1.c | Registros disponibles (`playbooks/quarterly/available_logs.yml`) | Trimestral (día 28 de mar/jun/sep/dic) | Implementado |
 | 8.3.9, 8.3.10.1 | Cambios de contraseña (`playbooks/quarterly/password_changes.yml`) | Trimestral | Implementado |
 | 12.3.3 | Revisión de suites y protocolos (`playbooks/quarterly/review_of_suites_and_protocols.yml`) | Trimestral | Definido / pendiente |
 | 11.2.1.a, 11.2.1.b, 11.2.1.c, 11.2.1.d | Puntos de acceso inalámbrico (`playbooks/quarterly/wireless_access_points.yml`) | Trimestral | Definido / pendiente |
@@ -103,6 +103,7 @@ La ejecución programada se soporta mediante los scripts dentro de `scripts_cron
 - `run_weekly.sh`
 - `run_monthly.sh`
 - `run_quarterly.sh`
+- `run_available_logs.sh` (Registros disponibles 3M: día 28 de marzo, junio, septiembre y diciembre)
 
 Estos scripts están diseñados para ejecutar los playbooks correspondientes según la frecuencia configurada y se integran con horarios cron.
 

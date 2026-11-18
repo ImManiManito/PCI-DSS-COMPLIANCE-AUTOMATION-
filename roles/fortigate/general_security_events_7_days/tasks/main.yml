@@ -1,0 +1,82 @@
+---
+# FortiGate - Eventos generales de seguridad (filtrado por subtype system) de los últimos
+# 7 días, parte del reporte trimestral "Logs disponibles 3M" (PCI DSS 10.5.1).
+# Igual que system_events_7_days, pero solo System Events y con rango de 7 días corridos
+# (no semana lunes a domingo).
+- name: FortiGate Eventos generales 7 días - Cargar variables de correo (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+# 7 días CDMX completos anteriores a hoy (00:00:00 del día -7 a 23:59:59 de ayer).
+# Ver roles/common/scripts/report_range.sh.
+- name: FortiGate Eventos generales 7 días - Definir rango del reporte (7 días, CDMX)
+  ansible.builtin.set_fact:
+    fortigate_general_7d_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 7') | from_json }}"
+    fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
+
+# Nada se guarda en el servidor: logs y evidencia solo existen en un directorio
+# temporal privado (0700) que se elimina al terminar, se envíe o no el correo.
+- name: FortiGate Eventos generales 7 días - Crear directorio temporal de trabajo
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_fortigate_general_events_7d_
+  register: fortigate_general_7d_tmp
+  delegate_to: localhost
+
+- name: FortiGate Eventos generales 7 días - Recolectar, generar, enviar y eliminar evidencia
+  block:
+    # Logs crudos: una sola sesión SSH por FortiGate y por corrida (common/fortigate_collect_logs.sh).
+    # En cron se guardan en PCI_RUN_TMPDIR (lo borra scripts_cron/run_*.sh); en una
+    # ejecución manual quedan dentro del directorio temporal de este rol.
+    - name: FortiGate Eventos generales 7 días - Definir rutas temporales
+      ansible.builtin.set_fact:
+        fortigate_general_7d_evidence_dir: "{{ fortigate_general_7d_tmp.path }}"
+        fortigate_log_cache_dir: "{{ lookup('ansible.builtin.env', 'PCI_RUN_TMPDIR') | default(fortigate_general_7d_tmp.path ~ '/cache', true) }}"
+
+    - name: FortiGate Eventos generales 7 días - Ejecutar recolección de logs vía CLI (svc_ansible)
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/general_security_events_7_days/scripts/fortigate_general_security_events_7_days.sh"
+          - "{{ hostvars[item].ansible_host }}"
+          - "{{ hostvars[item].ansible_port }}"
+          - "{{ hostvars[item].ansible_user }}"
+          - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+          - "{{ item }}"
+          - "{{ fortigate_run_id }}"
+          - "{{ fortigate_log_cache_dir }}"
+          - "{{ fortigate_general_7d_range.start }}"
+          - "{{ fortigate_general_7d_range.end }}"
+      loop: "{{ groups['fortigates'] }}"
+      loop_control:
+        label: "{{ item }}"
+      register: fortigate_general_7d_results
+      changed_when: false
+      delegate_to: localhost
+
+    # Un archivo por FortiGate (el nombre incluye el equipo para que no se sobrescriban).
+    - name: FortiGate Eventos generales 7 días - Generar evidencia en archivos .txt
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/fortigate/general_security_events_7_days/templates/general_security_events_report.txt.j2"
+        dest: "{{ fortigate_general_7d_evidence_dir }}/Eventos_generales_de_seguridad_7_dias_{{ item }}.txt"
+        mode: "0600"
+      loop: "{{ groups['fortigates'] }}"
+      loop_control:
+        label: "{{ item }}"
+        index_var: fortigate_general_7d_idx
+      vars:
+        fortigate_device: "{{ item }}"
+        fortigate_raw_output: "{{ fortigate_general_7d_results.results[fortigate_general_7d_idx].stdout }}"
+      delegate_to: localhost
+
+    - name: FortiGate Eventos generales 7 días - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv: "{{ ['bash', playbook_dir ~ '/../../roles/fortigate/common/send_mail_report.sh', fortigate_mail_from, fortigate_mail_to, 'FortiGate Eventos generales de seguridad 7 días - Evidencia PCI DSS (' ~ fortigate_general_7d_range.start_date ~ ' a ' ~ fortigate_general_7d_range.end_date ~ ', CDMX)'] + (groups['fortigates'] | map('regex_replace', '^', fortigate_general_7d_evidence_dir ~ '/Eventos_generales_de_seguridad_7_dias_') | map('regex_replace', '$', '.txt') | list) }}"
+      changed_when: false
+      delegate_to: localhost
+  always:
+    - name: FortiGate Eventos generales 7 días - Eliminar evidencia y logs del servidor
+      ansible.builtin.file:
+        path: "{{ fortigate_general_7d_tmp.path }}"
+        state: absent
+      delegate_to: localhost

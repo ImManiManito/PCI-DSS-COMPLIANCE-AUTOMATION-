@@ -1,0 +1,11 @@
+==================================================================
+Evidencia PCI DSS - FortiGate Eventos generales de seguridad (Últimos 7 días)
+==================================================================
+Dispositivo            : {{ fortigate_device }}
+Tipo de evento         : General System Events (subtype: system)
+Severidades filtradas  : emergency, alert, critical, error
+Rango cubierto         : {{ fortigate_general_7d_range.start_date }} 00:00:00 a {{ fortigate_general_7d_range.end_date }} 23:59:59 (CDMX, 7 días completos)
+Generado el (CDMX)     : {{ lookup('pipe', 'TZ=America/Mexico_City date "+%Y-%m-%d %H:%M:%S"') }}
+==================================================================
+
+{{ fortigate_raw_output }}

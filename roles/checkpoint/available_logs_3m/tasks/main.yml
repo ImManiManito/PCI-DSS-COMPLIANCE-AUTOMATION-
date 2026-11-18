@@ -1,0 +1,112 @@
+---
+# Check Point - Logs disponibles 3M (PCI DSS 10.5.1): dos evidencias de los últimos 90 días.
+#   1) Todos los logs de Infinity Events, sin ningún filtro.
+#   2) Solo los logs del blade IPS.
+# Reutiliza los scripts y parsers de block-acceptance (todos los logs) y events_ips (IPS);
+# solo cambia el rango de fechas.
+- name: Checkpoint Logs 3M - Cargar credenciales de Infinity Portal (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+# 90 días CDMX completos anteriores a hoy (00:00:00 del día -90 a 23:59:59 de ayer), en UTC
+# para la API. Ver roles/common/scripts/report_range.sh.
+- name: Checkpoint Logs 3M - Definir rango del reporte (90 días, CDMX)
+  ansible.builtin.set_fact:
+    checkpoint_logs_3m_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 90') | from_json }}"
+
+- name: Checkpoint Logs 3M - Definir evidencias a generar
+  ansible.builtin.set_fact:
+    checkpoint_logs_3m_evidences:
+      - label: "Todos los logs (sin filtro)"
+        script: "block-acceptance/scripts/checkpoint_block_acceptance.sh"
+        parser: "block-acceptance/scripts/parse_block_acceptance.py"
+        base: "Checkpoint_todos_los_logs_3M"
+      - label: "IPS"
+        script: "events_ips/scripts/checkpoint_events_ips.sh"
+        parser: "events_ips/scripts/parse_events_ips.py"
+        base: "Checkpoint_IPS_3M"
+
+# La evidencia solo existe en un directorio temporal privado (0700) mientras se envía:
+# en cuanto postfix acepta el correo (o si algo falla) se elimina del servidor.
+- name: Checkpoint Logs 3M - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_checkpoint_logs_3m_
+  register: checkpoint_logs_3m_tmp
+  delegate_to: localhost
+
+- name: Checkpoint Logs 3M - Generar, enviar y eliminar evidencia
+  block:
+    - name: Checkpoint Logs 3M - Definir rutas temporales de la evidencia
+      ansible.builtin.set_fact:
+        checkpoint_logs_3m_evidence_dir: "{{ checkpoint_logs_3m_tmp.path }}"
+        checkpoint_logs_3m_suffix: "{{ checkpoint_logs_3m_range.start_date }}_a_{{ checkpoint_logs_3m_range.end_date }}"
+
+    # pipefail: si falla la consulta a la API la tarea falla, en vez de enviar un CSV vacío.
+    # no_log oculta todo el resultado, también el motivo del error; por eso esta tarea no
+    # falla sola y la siguiente muestra solo stderr (los scripts nunca imprimen credenciales).
+    # timeout: la consulta nunca se queda colgada (90 días = 90 búsquedas de 24 h, de ahí las
+    # 6 horas); si se agota termina con código 124.
+    - name: Checkpoint Logs 3M - Consultar Infinity Events y generar evidencias CSV
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: >
+          set -o pipefail;
+          timeout -k 15 21600 bash "{{ playbook_dir }}/../../roles/checkpoint/{{ item.script }}"
+          "{{ checkpoint_infinity_auth_url }}"
+          "{{ checkpoint_infinity_events_url }}"
+          "{{ checkpoint_logs_3m_range.start_utc }}"
+          "{{ checkpoint_logs_3m_range.end_utc }}"
+          | python3 "{{ playbook_dir }}/../../roles/checkpoint/{{ item.parser }}"
+          > "{{ checkpoint_logs_3m_evidence_dir }}/{{ item.base }}_{{ checkpoint_logs_3m_suffix }}.csv"
+      loop: "{{ checkpoint_logs_3m_evidences }}"
+      environment:
+        CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
+        CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
+      register: checkpoint_logs_3m_results
+      changed_when: false
+      failed_when: false
+      no_log: true
+      delegate_to: localhost
+
+    - name: Checkpoint Logs 3M - Verificar las consultas a Infinity Events
+      ansible.builtin.fail:
+        msg: "{{ ['Evidencia ' ~ item.item.label ~ ':'] + (item.stderr_lines | default(['La consulta falló sin mensaje de error.'])) + (['Tiempo máximo agotado (21600 s): la API de Check Point no respondió a tiempo.'] if item.rc | default(0) == 124 else []) }}"
+      loop: "{{ checkpoint_logs_3m_results.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+      when: item.rc | default(1) != 0
+
+    - name: Checkpoint Logs 3M - Mostrar avisos de las consultas
+      ansible.builtin.debug:
+        msg: "{{ item.item.label }}: {{ item.stderr_lines }}"
+      loop: "{{ checkpoint_logs_3m_results.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+      when: item.stderr_lines | default([]) | length > 0
+
+    # 90 días de logs no caben en un correo como CSV: se comprimen en .zip (el CSV se
+    # elimina al comprimirlo).
+    - name: Checkpoint Logs 3M - Comprimir evidencias
+      ansible.builtin.archive:
+        path: "{{ checkpoint_logs_3m_evidence_dir }}/{{ item.base }}_{{ checkpoint_logs_3m_suffix }}.csv"
+        dest: "{{ checkpoint_logs_3m_evidence_dir }}/{{ item.base }}_{{ checkpoint_logs_3m_suffix }}.zip"
+        format: zip
+        remove: true
+        mode: "0600"
+      loop: "{{ checkpoint_logs_3m_evidences }}"
+      loop_control:
+        label: "{{ item.label }}"
+      delegate_to: localhost
+
+    - name: Checkpoint Logs 3M - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv: "{{ ['bash', playbook_dir ~ '/../../roles/checkpoint/common/send_mail_report.sh', checkpoint_mail_from, checkpoint_mail_to, 'Checkpoint Logs 3M (últimos 90 días) - Evidencia PCI DSS (' ~ checkpoint_logs_3m_range.start_date ~ ' a ' ~ checkpoint_logs_3m_range.end_date ~ ', CDMX)'] + (checkpoint_logs_3m_evidences | map(attribute='base') | map('regex_replace', '^', checkpoint_logs_3m_evidence_dir ~ '/') | map('regex_replace', '$', '_' ~ checkpoint_logs_3m_suffix ~ '.zip') | list) }}"
+      changed_when: false
+      delegate_to: localhost
+  always:
+    - name: Checkpoint Logs 3M - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ checkpoint_logs_3m_tmp.path }}"
+        state: absent
+      delegate_to: localhost

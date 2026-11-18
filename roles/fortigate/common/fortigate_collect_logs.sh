@@ -8,6 +8,8 @@
 #                     Admin Login Failed y Alertamiento-Detección (ayer)
 #   weekly_events  -> 1 sesión para system_events_7_days: System/VPN/User Events
 #                     (semana de lunes a domingo)
+#   quarterly_events -> 1 sesión para general_security_events_7_days (Logs disponibles 3M):
+#                     solo System Events de los últimos 7 días completos
 #   weekly_traffic -> 1 sesión para security_events_and_forward_traffic: Forward Traffic
 #                     y Webfilter (semana de lunes a domingo)
 #
@@ -23,12 +25,12 @@
 # La salida mezcla todas las consultas; cada parser filtra sus registros por campo
 # (subtype, level, action, status, date).
 #
-# Uso: fortigate_collect_logs.sh <daily|weekly_events|weekly_traffic> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>
+# Uso: fortigate_collect_logs.sh <daily|weekly_events|weekly_traffic|quarterly_events> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>
 
 set -euo pipefail
 
 if [[ $# -ne 8 ]]; then
-    echo "Uso: $0 <daily|weekly_events|weekly_traffic> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>" >&2
+    echo "Uso: $0 <daily|weekly_events|weekly_traffic|quarterly_events> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>" >&2
     exit 1
 fi
 
@@ -137,6 +139,20 @@ weekly_events_commands() {
     done
 }
 
+quarterly_events_commands() {
+    local report_date severity
+    local -a dates
+    mapfile -t dates < <(query_dates 7)
+    (( ${#dates[@]} > 0 )) || return 1
+
+    for report_date in "${dates[@]}"; do
+        # Eventos generales de seguridad: solo subtype system
+        for severity in "${EVENT_SEVERITIES[@]}"; do
+            event_query system "$severity" "$report_date"
+        done
+    done
+}
+
 weekly_traffic_commands() {
     local report_date page_start
     local -a dates
@@ -170,9 +186,9 @@ weekly_traffic_commands() {
 }
 
 case "$PROFILE" in
-    daily|weekly_events|weekly_traffic) ;;
+    daily|weekly_events|weekly_traffic|quarterly_events) ;;
     *)
-        echo "ERROR: Perfil desconocido: $PROFILE (usar daily, weekly_events o weekly_traffic)" >&2
+        echo "ERROR: Perfil desconocido: $PROFILE (usar daily, weekly_events, weekly_traffic o quarterly_events)" >&2
         exit 1
         ;;
 esac
