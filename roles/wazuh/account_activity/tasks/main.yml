@@ -1,0 +1,48 @@
+---
+# Wazuh - Actividad de cuentas: salida completa de lastlog (PCI DSS 8.2.6).
+# lastlog no requiere sudo y conserva el último acceso de cada usuario, así que no hace
+# falta un registro semanal como en FortiGate.
+- name: Wazuh Últimas conexiones - Cargar credenciales (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+# La evidencia solo existe en un directorio temporal privado (0700, de svc_ansible)
+# mientras se envía: en cuanto postfix acepta el correo (o si algo falla) se elimina.
+- name: Wazuh Últimas conexiones - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_wazuh_account_activity_
+  register: wazuh_account_activity_tmp
+
+- name: Wazuh Últimas conexiones - Generar, enviar y eliminar evidencia
+  block:
+    - name: Wazuh Últimas conexiones - Definir ruta temporal de la evidencia
+      ansible.builtin.set_fact:
+        wazuh_account_activity_date: "{{ lookup('ansible.builtin.pipe', 'TZ=America/Mexico_City date +%Y-%m-%d') }}"
+        wazuh_account_activity_file: "{{ wazuh_account_activity_tmp.path }}/Ultimas conexiones.txt"
+
+    # test -s: si lastlog no devuelve nada la tarea falla, en vez de enviar un archivo vacío.
+    - name: Wazuh Últimas conexiones - Ejecutar lastlog y guardar la salida
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: >
+          umask 077;
+          lastlog > "{{ wazuh_account_activity_file }}"
+          && test -s "{{ wazuh_account_activity_file }}"
+      changed_when: false
+
+    - name: Wazuh Últimas conexiones - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/wazuh/common/send_mail_report.sh"
+          - "{{ wazuh_mail_from }}"
+          - "{{ wazuh_mail_to }}"
+          - "Wazuh Últimas conexiones - Evidencia PCI DSS ({{ wazuh_account_activity_date }})"
+          - "{{ wazuh_account_activity_file }}"
+      changed_when: false
+  always:
+    - name: Wazuh Últimas conexiones - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ wazuh_account_activity_tmp.path }}"
+        state: absent

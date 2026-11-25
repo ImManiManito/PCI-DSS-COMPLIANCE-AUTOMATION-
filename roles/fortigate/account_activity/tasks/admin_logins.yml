@@ -1,0 +1,115 @@
+---
+# FortiGate - Actividad de cuentas: inicios de sesión en el portal (PCI DSS 8.2.6).
+# Logs completos de "Admin login successful", sin filtrar campos.
+#
+# Mismos modos que main.yml: con fortigate_account_activity_send: false solo acumula los logs
+# de los últimos 7 días; por defecto acumula, envía la evidencia y elimina lo enviado.
+#
+# EXCEPCIÓN a "nada se guarda en el servidor": los logs acumulados se conservan en
+# ~/.ansible/pci_state/ solo hasta que postfix acepta el correo; después queda únicamente el
+# último inicio de sesión de cada usuario (ver scripts/admin_logins.py).
+- name: FortiGate Accesos al portal - Cargar variables de correo (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+- name: FortiGate Accesos al portal - Definir variables de ejecución
+  ansible.builtin.set_fact:
+    fortigate_admin_logins_date: "{{ lookup('ansible.builtin.pipe', 'TZ=America/Mexico_City date +%Y-%m-%d') }}"
+    fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
+
+- name: FortiGate Accesos al portal - Crear directorio temporal de trabajo
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_fortigate_admin_logins_
+  register: fortigate_admin_logins_tmp
+  delegate_to: localhost
+
+- name: FortiGate Accesos al portal - Acumular logs y enviar evidencia
+  block:
+    - name: FortiGate Accesos al portal - Definir rutas temporales
+      ansible.builtin.set_fact:
+        fortigate_log_cache_dir: "{{ lookup('ansible.builtin.env', 'PCI_RUN_TMPDIR') | default(fortigate_admin_logins_tmp.path ~ '/cache', true) }}"
+        fortigate_admin_logins_file: "{{ fortigate_admin_logins_tmp.path }}/ultimas conexiones portal.txt"
+
+    - name: FortiGate Accesos al portal - Acumular inicios de sesión
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/account_activity/scripts/fortigate_admin_logins.sh"
+          - "{{ hostvars[item].ansible_host }}"
+          - "{{ hostvars[item].ansible_port }}"
+          - "{{ hostvars[item].ansible_user }}"
+          - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+          - "{{ item }}"
+          - "{{ fortigate_run_id }}"
+          - "{{ fortigate_log_cache_dir }}"
+      loop: "{{ groups['fortigates'] }}"
+      loop_control:
+        label: "{{ item }}"
+      register: fortigate_admin_logins_update
+      changed_when: false
+      delegate_to: localhost
+
+    - name: FortiGate Accesos al portal - Resumen de la actualización
+      ansible.builtin.debug:
+        msg: "{{ fortigate_admin_logins_update.results | map(attribute='stdout_lines') | flatten }}"
+
+    - name: FortiGate Accesos al portal - Generar y enviar evidencia
+      when: fortigate_account_activity_send | default(true) | bool
+      block:
+        - name: FortiGate Accesos al portal - Leer logs acumulados
+          ansible.builtin.command:
+            argv:
+              - python3
+              - "{{ playbook_dir }}/../../roles/fortigate/account_activity/scripts/admin_logins.py"
+              - report
+              - --device
+              - "{{ item }}"
+          loop: "{{ groups['fortigates'] }}"
+          loop_control:
+            label: "{{ item }}"
+          register: fortigate_admin_logins_results
+          changed_when: false
+          delegate_to: localhost
+
+        - name: FortiGate Accesos al portal - Generar evidencia en archivo .txt (una sección por equipo)
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/../../roles/fortigate/account_activity/templates/admin_logins_report.txt.j2"
+            dest: "{{ fortigate_admin_logins_file }}"
+            mode: "0600"
+          delegate_to: localhost
+
+        - name: FortiGate Accesos al portal - Enviar evidencia por correo
+          ansible.builtin.command:
+            argv:
+              - bash
+              - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+              - "{{ fortigate_mail_from }}"
+              - "{{ fortigate_mail_to }}"
+              - "FortiGate Últimas conexiones portal - Evidencia PCI DSS ({{ fortigate_admin_logins_date }})"
+              - "{{ fortigate_admin_logins_file }}"
+          changed_when: false
+          delegate_to: localhost
+
+        # Solo se llega aquí si postfix aceptó el correo.
+        - name: FortiGate Accesos al portal - Eliminar del servidor los logs enviados
+          ansible.builtin.command:
+            argv:
+              - python3
+              - "{{ playbook_dir }}/../../roles/fortigate/account_activity/scripts/admin_logins.py"
+              - sent
+              - --device
+              - "{{ item }}"
+              - --report
+              - "{{ fortigate_admin_logins_file }}"
+          loop: "{{ groups['fortigates'] }}"
+          loop_control:
+            label: "{{ item }}"
+          changed_when: false
+          delegate_to: localhost
+  always:
+    - name: FortiGate Accesos al portal - Eliminar evidencia y logs temporales del servidor
+      ansible.builtin.file:
+        path: "{{ fortigate_admin_logins_tmp.path }}"
+        state: absent
+      delegate_to: localhost

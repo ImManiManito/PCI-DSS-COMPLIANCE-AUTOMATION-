@@ -10,7 +10,7 @@ The project is in an active but incremental implementation stage. The repository
 
 - Daily controls: implemented and operational.
 - Weekly controls: implemented and scheduled.
-- Monthly controls: defined in the repository and pending completion or validation.
+- Monthly controls: Account Activity implemented; the others are defined and pending completion or validation.
 - Quarterly controls: defined, with active functionality for some controls and others still pending.
 
 ## Repository structure
@@ -50,7 +50,7 @@ The project is in an active but incremental implementation stage. The repository
 | 10.2.4, 10.2.7, 10.6.1, 11.5.2.a, 11.5.2.b | Change Detection (`playbooks/weekly/change_detection.yml`) | Weekly | Implemented |
 | 10.4.2.a, 10.4.2.b | Required Logs (`playbooks/weekly/required_logs.yml`) | Weekly | Implemented |
 | 7.2.5.1.a, 7.2.5.1.b, 7.2.5.1.c | Access Logs (`playbooks/monthly/access_logs.yml`) | Monthly | Defined / pending |
-| 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | Monthly | Defined / pending |
+| 8.2.6 | Account Activity (`playbooks/monthly/account_activity.yml`) | 15th of each month (weekly registry: `playbooks/weekly/account_activity_update.yml`) | Implemented |
 | 10.4.2.1.a, 10.4.2.1.b | Periodic Evaluations (`playbooks/monthly/periodic_evaluations.yml`) | Monthly | Defined / pending |
 | 7.2.4.a, 7.2.4.b | Privileged Accounts (`playbooks/monthly/privileged_accounts.yml`) | Monthly | Defined / pending |
 | 10.5.1.a, 10.5.1.b, 10.5.1.c | Available Logs (`playbooks/quarterly/available_logs.yml`) | Quarterly (28th of Mar/Jun/Sep/Dec) | Implemented |
@@ -83,6 +83,19 @@ Ranges only include days that have already ended, and consecutive runs are conti
 
 Evidence shows each event's time in CDMX, newest first.
 
+## Account Activity
+
+FortiGate keeps 7 days of logs, so each VPN user's last access is stored in a registry that is overwritten weekly (`playbooks/weekly/account_activity_update.yml`, no email) and on the 15th, when the evidence `ultimas conexiones VPN.txt` is sent (`playbooks/monthly/account_activity.yml`: eapuser, logdesc, time). It shows the most recent of the last connection (tunnel-up) and the last password change (FortiGate `passwd-time` or `password_changes.yml`).
+
+Portal logins (`Admin login successful`) are accumulated as full logs in the same runs and sent in a separate email (`ultimas conexiones portal.txt`). Once postfix accepts the email they are deleted from the server, except each user's last login.
+
+For Wazuh, the full `lastlog` output is sent on the 15th (`Ultimas conexiones.txt`); nothing is kept on the server.
+
+For Check Point, each VPN user's last connection (Mobile Access blade) over the last 90 days is sent on the 15th (`ultimas conexiones checkpoint.txt`); nothing is kept on the server either.
+
+- The FortiGate data is the only information that stays on the server, in `~/.ansible/pci_state/` (0700, files 0600) of the user running Ansible: `fortigate_vpn_last_access.json` (user, logdesc and dates) and `fortigate_admin_logins_<device>.txt` (full logs pending delivery). Use the `FORTIGATE_VPN_REGISTRY` environment variable for another path (path of the .json; the .txt goes in the same directory).
+- Initial load with the date of the last password change: `ansible-playbook playbooks/weekly/account_activity_update.yml -e fortigate_account_activity_password_date=YYYY-MM-DD`
+
 ## Deployment architecture
 
 The project currently assumes that Ansible executes on the same host as the SIEM, specifically Wazuh. This is an infrastructure constraint rather than the target ideal state. For the technical reasoning and the security implications of this design, see [docs/architecture.md](docs/architecture.md).
@@ -103,6 +116,7 @@ Scheduled execution is supported through the scripts in `scripts_cron/`:
 - `run_weekly.sh`
 - `run_monthly.sh`
 - `run_quarterly.sh`
+- `run_account_activity.sh` (Account Activity: 15th of each month)
 - `run_available_logs.sh` (Available Logs 3M: 28th of March, June, September and December)
 
 These scripts are designed to execute the corresponding playbooks according to the configured frequency and to integrate with cron-based scheduling.

@@ -1,0 +1,106 @@
+---
+# FortiGate - Actividad de cuentas: último acceso de los usuarios VPN (PCI DSS 8.2.6).
+#
+# El FortiGate solo guarda 7 días de logs, por eso hay dos modos:
+#   - fortigate_account_activity_send: false -> solo actualiza el registro
+#     (playbooks/weekly/account_activity_update.yml, cada 7 días)
+#   - fortigate_account_activity_send: true (por defecto) -> actualiza y envía la evidencia
+#     (playbooks/monthly/account_activity.yml, día 15 de cada mes)
+#
+# EXCEPCIÓN a "nada se guarda en el servidor": el registro de último acceso (un renglón por
+# usuario: usuario, logdesc y fechas) sí se conserva, porque el FortiGate ya no tiene esos
+# logs. Ruta: ~/.ansible/pci_state/ (ver scripts/vpn_last_access.py). Los logs crudos y la
+# evidencia siguen siendo temporales.
+#
+# Opcional: -e fortigate_account_activity_password_date=AAAA-MM-DD registra esa fecha como
+# último cambio de contraseña de todos los usuarios VPN (para la carga inicial).
+- name: FortiGate Actividad de cuentas - Cargar variables de correo (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+- name: FortiGate Actividad de cuentas - Definir variables de ejecución
+  ansible.builtin.set_fact:
+    fortigate_account_activity_date: "{{ lookup('ansible.builtin.pipe', 'TZ=America/Mexico_City date +%Y-%m-%d') }}"
+    fortigate_run_id: "{{ lookup('ansible.builtin.env', 'PCI_RUN_ID') }}"
+
+- name: FortiGate Actividad de cuentas - Crear directorio temporal de trabajo
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_fortigate_account_activity_
+  register: fortigate_account_activity_tmp
+  delegate_to: localhost
+
+- name: FortiGate Actividad de cuentas - Actualizar registro y enviar evidencia
+  block:
+    - name: FortiGate Actividad de cuentas - Definir rutas temporales
+      ansible.builtin.set_fact:
+        fortigate_log_cache_dir: "{{ lookup('ansible.builtin.env', 'PCI_RUN_TMPDIR') | default(fortigate_account_activity_tmp.path ~ '/cache', true) }}"
+
+    - name: FortiGate Actividad de cuentas - Actualizar último acceso de los usuarios VPN
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/fortigate/account_activity/scripts/fortigate_account_activity.sh"
+          - "{{ hostvars[item].ansible_host }}"
+          - "{{ hostvars[item].ansible_port }}"
+          - "{{ hostvars[item].ansible_user }}"
+          - "{{ hostvars[item].ansible_ssh_private_key_file }}"
+          - "{{ item }}"
+          - "{{ fortigate_run_id }}"
+          - "{{ fortigate_log_cache_dir }}"
+          - "{{ fortigate_account_activity_password_date | default('') }}"
+      environment:
+        VPN_GROUPS_OVERRIDE: "{{ fortigate_vpn_groups | default([]) | join(',') }}"
+      loop: "{{ groups['fortigates'] }}"
+      loop_control:
+        label: "{{ item }}"
+      register: fortigate_account_activity_update
+      changed_when: false
+      delegate_to: localhost
+
+    - name: FortiGate Actividad de cuentas - Resumen de la actualización
+      ansible.builtin.debug:
+        msg: "{{ fortigate_account_activity_update.results | map(attribute='stdout_lines') | flatten }}"
+
+    - name: FortiGate Actividad de cuentas - Generar y enviar evidencia
+      when: fortigate_account_activity_send | default(true) | bool
+      block:
+        - name: FortiGate Actividad de cuentas - Leer registro de último acceso
+          ansible.builtin.command:
+            argv:
+              - python3
+              - "{{ playbook_dir }}/../../roles/fortigate/account_activity/scripts/vpn_last_access.py"
+              - report
+              - --device
+              - "{{ item }}"
+          loop: "{{ groups['fortigates'] }}"
+          loop_control:
+            label: "{{ item }}"
+          register: fortigate_account_activity_results
+          changed_when: false
+          delegate_to: localhost
+
+        - name: FortiGate Actividad de cuentas - Generar evidencia en archivo .txt (una sección por equipo)
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/../../roles/fortigate/account_activity/templates/account_activity_report.txt.j2"
+            dest: "{{ fortigate_account_activity_tmp.path }}/ultimas conexiones VPN.txt"
+            mode: "0600"
+          delegate_to: localhost
+
+        - name: FortiGate Actividad de cuentas - Enviar evidencia por correo
+          ansible.builtin.command:
+            argv:
+              - bash
+              - "{{ playbook_dir }}/../../roles/fortigate/common/send_mail_report.sh"
+              - "{{ fortigate_mail_from }}"
+              - "{{ fortigate_mail_to }}"
+              - "FortiGate Últimas conexiones VPN - Evidencia PCI DSS ({{ fortigate_account_activity_date }})"
+              - "{{ fortigate_account_activity_tmp.path }}/ultimas conexiones VPN.txt"
+          changed_when: false
+          delegate_to: localhost
+  always:
+    - name: FortiGate Actividad de cuentas - Eliminar evidencia y logs del servidor
+      ansible.builtin.file:
+        path: "{{ fortigate_account_activity_tmp.path }}"
+        state: absent
+      delegate_to: localhost

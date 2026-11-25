@@ -119,6 +119,8 @@ def main():
             "type": (attrs.get("type") or ["password"])[0],
             "status": (attrs.get("status") or ["enable"])[0],
             "groups": member_of,
+            # Último cambio de contraseña, en hora local del FortiGate (vacío si no lo reporta).
+            "passwd_time": " ".join(attrs.get("passwd-time", [])),
         })
 
     json.dump({"vpn_groups": sorted(vpn_groups), "users": result}, sys.stdout)

@@ -1,0 +1,13 @@
+{% for result in fortigate_admin_logins_results.results %}
+==================================================================
+Evidencia PCI DSS - FortiGate Últimas conexiones portal
+==================================================================
+Dispositivo            : {{ result.item }}
+Tipo de evento         : System Events (logdesc: Admin login successful), logs completos
+Contenido              : Inicios de sesión desde el envío anterior y el último de cada usuario
+Generado el (CDMX)     : {{ lookup('pipe', 'TZ=America/Mexico_City date "+%Y-%m-%d %H:%M:%S"') }}
+==================================================================
+
+{{ result.stdout }}
+
+{% endfor %}

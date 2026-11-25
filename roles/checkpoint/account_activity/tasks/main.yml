@@ -1,0 +1,83 @@
+---
+# Check Point - Actividad de cuentas: última conexión de los usuarios VPN (blade Mobile
+# Access) de los últimos 3 meses (PCI DSS 8.2.6). Infinity Events conserva los 90 días, así
+# que no hace falta un registro semanal como en FortiGate.
+- name: Checkpoint Últimas conexiones - Cargar credenciales de Infinity Portal (vault)
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../../vars/vault.yml"
+
+# 90 días CDMX completos anteriores a hoy (00:00:00 del día -90 a 23:59:59 de ayer), en UTC
+# para la API. Ver roles/common/scripts/report_range.sh.
+- name: Checkpoint Últimas conexiones - Definir rango del reporte (90 días, CDMX)
+  ansible.builtin.set_fact:
+    checkpoint_account_activity_range: "{{ lookup('ansible.builtin.pipe', 'bash ' ~ (playbook_dir ~ '/../../roles/common/scripts/report_range.sh') | quote ~ ' 90') | from_json }}"
+
+# La evidencia solo existe en un directorio temporal privado (0700) mientras se envía:
+# en cuanto postfix acepta el correo (o si algo falla) se elimina del servidor.
+- name: Checkpoint Últimas conexiones - Crear directorio temporal de evidencias
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: pci_checkpoint_account_activity_
+  register: checkpoint_account_activity_tmp
+  delegate_to: localhost
+
+- name: Checkpoint Últimas conexiones - Generar, enviar y eliminar evidencia
+  block:
+    - name: Checkpoint Últimas conexiones - Definir ruta temporal de la evidencia
+      ansible.builtin.set_fact:
+        checkpoint_account_activity_file: "{{ checkpoint_account_activity_tmp.path }}/ultimas conexiones checkpoint.txt"
+
+    # pipefail: si falla la consulta a la API la tarea falla, en vez de enviar un .txt incompleto.
+    # no_log oculta todo el resultado, también el motivo del error; por eso esta tarea no
+    # falla sola y la siguiente muestra solo stderr (los scripts nunca imprimen credenciales).
+    # timeout: la consulta nunca se queda colgada (90 días = 90 búsquedas de 24 h, de ahí las
+    # 6 horas); si se agota termina con código 124.
+    - name: Checkpoint Últimas conexiones - Consultar Infinity Events (Mobile Access) y generar evidencia
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: >
+          set -o pipefail; umask 077;
+          timeout -k 15 21600 bash "{{ playbook_dir }}/../../roles/checkpoint/account_activity/scripts/checkpoint_mobile_access.sh"
+          "{{ checkpoint_infinity_auth_url }}"
+          "{{ checkpoint_infinity_events_url }}"
+          "{{ checkpoint_account_activity_range.start_utc }}"
+          "{{ checkpoint_account_activity_range.end_utc }}"
+          | python3 "{{ playbook_dir }}/../../roles/checkpoint/account_activity/scripts/parse_mobile_access.py"
+          --start-date "{{ checkpoint_account_activity_range.start_date }}"
+          --end-date "{{ checkpoint_account_activity_range.end_date }}"
+          > "{{ checkpoint_account_activity_file }}"
+      environment:
+        CHECKPOINT_CLIENT_ID: "{{ checkpoint_infinity_client_id }}"
+        CHECKPOINT_ACCESS_KEY: "{{ checkpoint_infinity_access_key }}"
+      register: checkpoint_account_activity_result
+      changed_when: false
+      failed_when: false
+      no_log: true
+      delegate_to: localhost
+
+    - name: Checkpoint Últimas conexiones - Verificar la consulta a Infinity Events
+      ansible.builtin.fail:
+        msg: "{{ (checkpoint_account_activity_result.stderr_lines | default(['La consulta falló sin mensaje de error.'])) + (['Tiempo máximo agotado (21600 s): la API de Check Point no respondió a tiempo.'] if checkpoint_account_activity_result.rc | default(0) == 124 else []) }}"
+      when: checkpoint_account_activity_result.rc | default(1) != 0
+
+    - name: Checkpoint Últimas conexiones - Mostrar resumen y avisos de la consulta
+      ansible.builtin.debug:
+        var: checkpoint_account_activity_result.stderr_lines
+
+    - name: Checkpoint Últimas conexiones - Enviar evidencia por correo
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ playbook_dir }}/../../roles/checkpoint/common/send_mail_report.sh"
+          - "{{ checkpoint_mail_from }}"
+          - "{{ checkpoint_mail_to }}"
+          - "Checkpoint Últimas conexiones VPN (3 meses) - Evidencia PCI DSS ({{ checkpoint_account_activity_range.start_date }} a {{ checkpoint_account_activity_range.end_date }}, CDMX)"
+          - "{{ checkpoint_account_activity_file }}"
+      changed_when: false
+      delegate_to: localhost
+  always:
+    - name: Checkpoint Últimas conexiones - Eliminar evidencia del servidor
+      ansible.builtin.file:
+        path: "{{ checkpoint_account_activity_tmp.path }}"
+        state: absent
+      delegate_to: localhost

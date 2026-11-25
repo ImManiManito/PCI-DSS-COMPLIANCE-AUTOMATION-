@@ -12,6 +12,10 @@
 #                     solo System Events de los últimos 7 días completos
 #   weekly_traffic -> 1 sesión para security_events_and_forward_traffic: Forward Traffic
 #                     y Webfilter (semana de lunes a domingo)
+#   vpn_access     -> 1 sesión para account_activity (Actividad de cuentas): conexiones VPN
+#                     (tunnel-up) que conserva el equipo (7 días), hasta la hora de la corrida
+#   admin_access   -> 1 sesión para account_activity: inicios de sesión en el portal
+#                     (Admin login successful) que conserva el equipo (7 días)
 #
 # El FortiGate filtra por la fecha de SU zona horaria, que puede no ser la de CDMX
 # (p. ej. UTC: el día CDMX va de 06:00 de ese día a 05:59 del siguiente). Por eso se
@@ -25,12 +29,12 @@
 # La salida mezcla todas las consultas; cada parser filtra sus registros por campo
 # (subtype, level, action, status, date).
 #
-# Uso: fortigate_collect_logs.sh <daily|weekly_events|weekly_traffic|quarterly_events> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>
+# Uso: fortigate_collect_logs.sh <daily|weekly_events|weekly_traffic|quarterly_events|vpn_access|admin_access> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>
 
 set -euo pipefail
 
 if [[ $# -ne 8 ]]; then
-    echo "Uso: $0 <daily|weekly_events|weekly_traffic|quarterly_events> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>" >&2
+    echo "Uso: $0 <daily|weekly_events|weekly_traffic|quarterly_events|vpn_access|admin_access> <HOST> <PORT> <USER> <PRIVATE_KEY> <DEVICE> <RUN_ID> <CACHE_DIR>" >&2
     exit 1
 fi
 
@@ -185,10 +189,46 @@ weekly_traffic_commands() {
     done
 }
 
+vpn_access_commands() {
+    local query_date page_start
+    local -a dates
+    # 8 días completos más hoy: cubre los 7 días que conserva el equipo con margen.
+    mapfile -t dates < <(query_dates 8)
+    (( ${#dates[@]} > 0 )) || return 1
+
+    for query_date in "${dates[@]}"; do
+        for page_start in "${PAGE_STARTS[@]}"; do
+            echo "execute log filter reset"
+            echo "execute log filter category event"
+            echo "execute log filter field subtype vpn"
+            echo "execute log filter field action tunnel-up"
+            echo "execute log filter field date ${query_date}"
+            echo "execute log filter view-lines ${VIEW_LINES}"
+            echo "execute log filter start ${page_start}"
+            echo "execute log display"
+        done
+    done
+}
+
+admin_access_commands() {
+    local page_start
+    # Páginas de 100 (start=0,100,...,900): hasta 1000 logs. Si se cambia, ajustar MAX_LOGS
+    # en account_activity/scripts/admin_logins.py.
+    for page_start in {0..900..100}; do
+        echo "execute log filter reset"
+        echo "execute log filter category event"
+        echo "execute log filter field subtype system"
+        echo 'execute log filter field logdesc "Admin login successful"'
+        echo "execute log filter view-lines 100"
+        echo "execute log filter start ${page_start}"
+        echo "execute log display"
+    done
+}
+
 case "$PROFILE" in
-    daily|weekly_events|weekly_traffic|quarterly_events) ;;
+    daily|weekly_events|weekly_traffic|quarterly_events|vpn_access|admin_access) ;;
     *)
-        echo "ERROR: Perfil desconocido: $PROFILE (usar daily, weekly_events, weekly_traffic o quarterly_events)" >&2
+        echo "ERROR: Perfil desconocido: $PROFILE (usar daily, weekly_events, weekly_traffic, quarterly_events, vpn_access o admin_access)" >&2
         exit 1
         ;;
 esac

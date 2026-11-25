@@ -1,0 +1,13 @@
+{% for result in fortigate_account_activity_results.results %}
+==================================================================
+Evidencia PCI DSS - FortiGate Últimas conexiones VPN
+==================================================================
+Dispositivo            : {{ result.item }}
+Tipo de evento         : VPN Events (subtype: vpn, action: tunnel-up)
+Último acceso          : Última conexión VPN o, si no hay una posterior, último cambio de contraseña
+Generado el (CDMX)     : {{ lookup('pipe', 'TZ=America/Mexico_City date "+%Y-%m-%d %H:%M:%S"') }}
+==================================================================
+
+{{ result.stdout }}
+
+{% endfor %}

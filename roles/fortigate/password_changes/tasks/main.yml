@@ -20,6 +20,25 @@
   loop_control:
     loop_var: fortigate_pwd_device
 
+# Referencia de "último acceso" para la Actividad de cuentas (mensual). Si falla, el cambio
+# de contraseñas y su reporte continúan y el error se informa al final.
+- name: FortiGate Password Changes - Registrar fecha del cambio para Actividad de cuentas
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../roles/fortigate/account_activity/scripts/vpn_last_access.py"
+      - password
+      - --device
+      - "{{ item }}"
+    stdin: "{{ fortigate_pwd_results | selectattr('device', 'equalto', item) | selectattr('changed', 'equalto', 'OK') | map(attribute='name') | list | to_json }}"
+  loop: "{{ groups['fortigates'] }}"
+  loop_control:
+    label: "{{ item }}"
+  register: fortigate_pwd_registry
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
 - name: FortiGate Password Changes - Esperar entrega de correos
   ansible.builtin.wait_for:
     timeout: 8
@@ -107,3 +126,12 @@
       - fortigate_pwd_results | selectattr('changed', 'equalto', 'FAILED') | list | length == 0
       - fortigate_pwd_results | selectattr('mail', 'equalto', 'FAILED') | list | length == 0
     fail_msg: "Hubo usuarios con cambio o correo fallido; revise el reporte HTML enviado por correo."
+
+- name: FortiGate Password Changes - Fallar si no se registró la fecha del cambio
+  ansible.builtin.assert:
+    that: item.rc == 0
+    fail_msg: "No se registró el cambio de contraseña de {{ item.item }} para Actividad de cuentas: {{ item.stderr | default('sin detalle') }}"
+    quiet: true
+  loop: "{{ fortigate_pwd_registry.results }}"
+  loop_control:
+    label: "{{ item.item }}"

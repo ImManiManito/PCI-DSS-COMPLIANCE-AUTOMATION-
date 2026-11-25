@@ -32,7 +32,7 @@ def parse_line(line):
     return fields
 
 
-def _device_tz(log):
+def device_tz(log):
     """Zona del FortiGate según el campo tz del log (p. ej. "-0600")."""
     match = TZ_PATTERN.match(log.get("tz", ""))
     if match:
@@ -56,7 +56,7 @@ def event_time(log):
                 seconds //= 1000
             return datetime.fromtimestamp(seconds, tz=timezone.utc).astimezone(CDMX)
         local = datetime.strptime(f"{log['date']} {log['time']}", "%Y-%m-%d %H:%M:%S")
-        return local.replace(tzinfo=_device_tz(log)).astimezone(CDMX)
+        return local.replace(tzinfo=device_tz(log)).astimezone(CDMX)
     except (KeyError, ValueError, OverflowError, OSError):
         return None
 

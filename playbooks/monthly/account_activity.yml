@@ -1,0 +1,52 @@
+---
+# Actividad de cuentas - PCI DSS 8.2.6
+# Envía la evidencia el día 15 de cada mes (scripts_cron/run_account_activity.sh);
+# scripts_cron/run_monthly.sh lo omite el día 1.
+# Cada herramienta corre de forma independiente: si una falla, las demás siguen y
+# envían su evidencia; al final el playbook termina con error indicando cuál falló.
+- name: Actividad de cuentas - Monthly Security Activities
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Execute FortiGate - Actividad de cuentas (último acceso de usuarios VPN)
+      block:
+        - name: FortiGate - Actividad de cuentas (último acceso de usuarios VPN)
+          ansible.builtin.include_tasks: ../../roles/fortigate/account_activity/tasks/main.yml
+      rescue:
+        - name: Registrar falla de FortiGate - Actividad de cuentas (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - Actividad de cuentas: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Execute FortiGate - Accesos al portal (Admin login successful)
+      block:
+        - name: FortiGate - Accesos al portal (Admin login successful)
+          ansible.builtin.include_tasks: ../../roles/fortigate/account_activity/tasks/admin_logins.yml
+      rescue:
+        - name: Registrar falla de FortiGate - Accesos al portal (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - Accesos al portal: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Execute Wazuh - Últimas conexiones (lastlog)
+      block:
+        - name: Wazuh - Últimas conexiones (lastlog)
+          ansible.builtin.include_tasks: ../../roles/wazuh/account_activity/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Wazuh - Últimas conexiones (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Wazuh - Últimas conexiones: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Execute Checkpoint - Últimas conexiones VPN (Mobile Access, últimos 3 meses)
+      block:
+        - name: Checkpoint - Últimas conexiones VPN (Mobile Access, últimos 3 meses)
+          ansible.builtin.include_tasks: ../../roles/checkpoint/account_activity/tasks/main.yml
+      rescue:
+        - name: Registrar falla de Checkpoint - Últimas conexiones VPN (las demás herramientas continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['Checkpoint - Últimas conexiones VPN: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Verificar que todas las herramientas enviaron su evidencia
+      ansible.builtin.fail:
+        msg: "{{ ['No se envió la evidencia de:'] + pci_failed_sections }}"
+      when: pci_failed_sections | default([]) | length > 0

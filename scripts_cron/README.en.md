@@ -11,8 +11,9 @@ PCI-DSS-COMPLIANCE-AUTOMATION- according to their defined frequency.
 |---------------------|-----------------------------|-----------------------------------------------------|
 | `run_daily.sh`      | `playbooks/daily/*.yml`     | Every time it is invoked                            |
 | `run_weekly.sh`     | `playbooks/weekly/*.yml`    | Only on Mondays (`date +%u == 1`)                   |
-| `run_monthly.sh`    | `playbooks/monthly/*.yml`   | Only on the 1st day of each month (`date +%d == 01`)|
+| `run_monthly.sh`    | `playbooks/monthly/*.yml` (except `account_activity.yml`) | Only on the 1st day of each month (`date +%d == 01`)|
 | `run_quarterly.sh`  | `playbooks/quarterly/*.yml` (except `available_logs.yml`) | Only on January 1, April 1, July 1, and October 1   |
+| `run_account_activity.sh` | `playbooks/monthly/account_activity.yml` | Only on the 15th day of each month |
 | `run_available_logs.sh` | `playbooks/quarterly/available_logs.yml` | Only on March 28, June 28, September 28, and December 28 |
 
 ## Requirements
@@ -55,6 +56,9 @@ playbook. To use a different path, export `ANSIBLE_VAULT_PASSWORD_FILE`.
 
 # Quarterly (January 1, April 1, July 1, October 1) at 07:30
 30 7 1 1,4,7,10 * /path/to/project/scripts_cron/run_quarterly.sh >> /path/to/project/logs/cron_quarterly.log 2>&1
+
+# Account Activity (15th) at 07:00
+0 7 15 * * /path/to/project/scripts_cron/run_account_activity.sh >> /path/to/project/logs/cron_account_activity.log 2>&1
 
 # Available Logs 3M (March 28, June 28, September 28, December 28) at 09:00 UTC (03:00 Mexico City)
 # With a UTC server, schedule at 06:00 UTC or later so the 28th has already started in Mexico City.

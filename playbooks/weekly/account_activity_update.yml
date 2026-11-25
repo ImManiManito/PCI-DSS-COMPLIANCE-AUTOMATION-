@@ -1,0 +1,36 @@
+---
+# Actividad de cuentas - PCI DSS 8.2.6
+# El FortiGate solo guarda 7 días de logs: cada semana se actualizan el último acceso de los
+# usuarios VPN y los accesos al portal, sin enviar correo. La evidencia la envía
+# playbooks/monthly/account_activity.yml (día 15 de cada mes).
+- name: Actividad de cuentas - Actualización semanal
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    fortigate_account_activity_send: false
+
+  tasks:
+
+    - name: Execute FortiGate - Actividad de cuentas VPN (solo actualizar)
+      block:
+        - name: FortiGate - Actividad de cuentas VPN (solo actualizar)
+          ansible.builtin.include_tasks: ../../roles/fortigate/account_activity/tasks/main.yml
+      rescue:
+        - name: Registrar falla de FortiGate - Actividad de cuentas VPN (las demás continúan)
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - Actividad de cuentas VPN: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Execute FortiGate - Accesos al portal (solo actualizar)
+      block:
+        - name: FortiGate - Accesos al portal (solo actualizar)
+          ansible.builtin.include_tasks: ../../roles/fortigate/account_activity/tasks/admin_logins.yml
+      rescue:
+        - name: Registrar falla de FortiGate - Accesos al portal
+          ansible.builtin.set_fact:
+            pci_failed_sections: "{{ pci_failed_sections | default([]) + ['FortiGate - Accesos al portal: ' ~ ([ansible_failed_result.msg | default('sin detalle'), ansible_failed_result.stderr_lines | default([])] | flatten | join(' | '))] }}"
+
+    - name: Verificar que todo se actualizó
+      ansible.builtin.fail:
+        msg: "{{ ['No se actualizó (volver a ejecutar cuanto antes, el FortiGate solo guarda 7 días):'] + pci_failed_sections }}"
+      when: pci_failed_sections | default([]) | length > 0
