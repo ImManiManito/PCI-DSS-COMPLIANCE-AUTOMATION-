@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# scripts_cron/run_weekly.sh
-# Ejecuta todos los playbooks del directorio playbooks/weekly/ SOLO los lunes.
-#
-# Frecuencia sugerida: programar diariamente en cron; el script decide si ejecuta.
-# Programación típica en cron (ejemplo a las 06:30):
-#   30 6 * * * /ruta/al/proyecto/scripts_cron/run_weekly.sh >> /ruta/al/proyecto/logs/cron_weekly.log 2>&1
-#
-# La contraseña de Ansible Vault se lee sola de ~/.ansible/.vault_pass (permisos 400),
-# sin pedirla. Para usar otra ruta: export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/.vault_pass
 
 set -euo pipefail
 

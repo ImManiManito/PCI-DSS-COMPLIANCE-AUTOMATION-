@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# scripts_cron/run_quarterly.sh
-# Ejecuta todos los playbooks del directorio playbooks/quarterly/
-# SOLO el día 1 de enero, abril, julio y octubre.
-#
-# Frecuencia sugerida: programar diariamente en cron; el script decide si ejecuta.
-# Programación típica en cron (ejemplo a las 07:30):
-#   30 7 * * * /ruta/al/proyecto/scripts_cron/run_quarterly.sh >> /ruta/al/proyecto/logs/cron_quarterly.log 2>&1
-#
-# La contraseña de Ansible Vault se lee sola de ~/.ansible/.vault_pass (permisos 400),
-# sin pedirla. Para usar otra ruta: export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/.vault_pass
 
 set -euo pipefail
 

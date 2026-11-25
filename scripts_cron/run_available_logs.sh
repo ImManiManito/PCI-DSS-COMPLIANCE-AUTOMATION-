@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# scripts_cron/run_available_logs.sh
-# Ejecuta el playbook trimestral playbooks/quarterly/available_logs.yml (3M - Logs
-# disponibles) SOLO el día 28 de marzo, junio, septiembre y diciembre.
-# run_quarterly.sh (día 1 de enero/abril/julio/octubre) omite este playbook: tiene su
-# propio calendario.
-#
-# Frecuencia sugerida: programar en cron el día 28 de esos meses; el script vuelve a
-# validar la fecha. El servidor está en UTC: programar a las 06:00 UTC o después, para
-# que el día 28 ya haya empezado también en CDMX (UTC-6). Ejemplo (09:00 UTC = 03:00 CDMX):
-#   0 9 28 3,6,9,12 * /ruta/al/proyecto/scripts_cron/run_available_logs.sh >> /ruta/al/log/cron_available_logs.log 2>&1
-#
-# La contraseña de Ansible Vault se lee sola de ~/.ansible/.vault_pass (permisos 400),
-# sin pedirla. Para usar otra ruta: export ANSIBLE_VAULT_PASSWORD_FILE=/ruta/.vault_pass
 
 set -euo pipefail
 
